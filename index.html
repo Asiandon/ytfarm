@@ -421,13 +421,23 @@
           </div>
         </div>
 
-        <div class="result-card" style="margin-top:12px;" id="res-voice-card">
-          <div class="result-card-header">
-            <span class="step-badge done">✓</span>
-            <span style="font-weight:600;font-size:13px;">Voiceover Instructions (ElevenLabs)</span>
-            <button class="copy-btn" onclick="copyEl('res-voice-body')">copy</button>
+        <div class="result-card" style="margin-top:12px;border-color:rgba(155,109,255,0.25);" id="res-voice-card">
+          <div class="result-card-header" style="background:rgba(155,109,255,0.05);">
+            <span class="step-badge done" style="background:rgba(155,109,255,0.2);border-color:var(--purple);color:var(--purple);">✓</span>
+            <span style="font-weight:600;font-size:13px;">🔊 Voiceover Audio — ElevenLabs</span>
+            <span id="el-audio-status" class="tag tag-amber" style="margin-left:auto;">generating...</span>
           </div>
-          <div class="result-card-body" id="res-voice-body" style="font-size:12px;line-height:1.8;"></div>
+          <div class="result-card-body" id="res-voice-body">
+            <div id="el-audio-player" style="display:none;">
+              <audio id="audio-player" controls style="width:100%;margin-bottom:12px;border-radius:5px;"></audio>
+              <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                <button class="btn btn-ghost" onclick="downloadAudio()" style="border-color:rgba(155,109,255,0.3);color:var(--purple);">⬇ Download MP3</button>
+                <button class="btn btn-ghost" onclick="regenAudio()" style="font-size:12px;">↺ Regenerate</button>
+                <div id="el-audio-meta" style="font-family:var(--font-mono);font-size:11px;color:var(--text3);align-self:center;margin-left:auto;"></div>
+              </div>
+            </div>
+            <div id="el-audio-msg" style="font-size:12px;color:var(--text2);line-height:1.8;"></div>
+          </div>
         </div>
 
         <div class="result-card" style="margin-top:12px;border-color:rgba(0,229,160,0.25);" id="res-upload-section" style="display:none;">
@@ -1100,10 +1110,68 @@
           <div class="card-label" style="margin-bottom:12px;">🔌 INTEGRATIONS</div>
           <div style="display:flex;flex-direction:column;gap:10px;">
             <div style="display:flex;align-items:center;gap:10px;"><span style="flex:1;font-size:13px;">YouTube OAuth 2.0</span><span id="yt-int-status" class="tag tag-amber">not connected</span></div>
-            <div style="display:flex;align-items:center;gap:10px;"><span style="flex:1;font-size:13px;">ElevenLabs TTS</span><span class="tag tag-green">configured</span></div>
-            <div style="display:flex;align-items:center;gap:10px;"><span style="flex:1;font-size:13px;">DALL·E 3</span><span class="tag tag-green">configured</span></div>
+            <div style="display:flex;align-items:center;gap:10px;"><span style="flex:1;font-size:13px;">ElevenLabs TTS</span><span id="el-int-status" class="tag tag-amber">not configured</span></div>
             <div style="display:flex;align-items:center;gap:10px;"><span style="flex:1;font-size:13px;">Google Trends API</span><span class="tag tag-amber">configure</span></div>
             <div style="display:flex;align-items:center;gap:10px;"><span style="flex:1;font-size:13px;">Pexels Stock Video</span><span class="tag tag-amber">configure</span></div>
+          </div>
+        </div>
+
+        <!-- ELEVENLABS CONFIG -->
+        <div class="card" style="border-color:rgba(155,109,255,0.25);grid-column:1/-1;">
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;">
+            <div style="width:28px;height:28px;background:rgba(155,109,255,0.2);border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;">🔊</div>
+            <div>
+              <div class="card-label" style="margin:0;font-size:11px;">ELEVENLABS TTS — AUTO VOICEOVER</div>
+              <div style="font-size:11px;color:var(--text3);font-family:var(--font-mono);">Generates real MP3 audio from your script automatically</div>
+            </div>
+            <span id="el-status-tag" class="tag tag-amber" style="margin-left:auto;">not configured</span>
+          </div>
+
+          <div style="background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:12px;margin-bottom:14px;font-size:12px;color:var(--text2);line-height:1.8;">
+            <div style="font-family:var(--font-mono);font-size:10px;color:var(--purple);margin-bottom:6px;">HOW TO GET YOUR API KEY</div>
+            <div>1. Go to <span style="color:#9b6dff;font-family:var(--font-mono);">elevenlabs.io</span> → Sign up free (10,000 chars/month free)</div>
+            <div>2. Click your profile → <span style="color:var(--text);">API Keys</span> → Generate → copy the key</div>
+            <div>3. Paste below → click Save → voiceover generates automatically in the pipeline</div>
+          </div>
+
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px;">
+            <div>
+              <label>ElevenLabs API Key</label>
+              <input type="password" id="el-api-key" placeholder="sk_11e2c33211656b852c026dc174a6d756dd661110e948a1f5" oninput="onELInput()">
+            </div>
+            <div>
+              <label>Voice</label>
+              <select id="el-voice-id">
+                <option value="21m00Tcm4TlvDq8ikWAM">Rachel — calm, professional female</option>
+                <option value="AZnzlk1XvdvUeBnXmlld">Domi — strong, confident female</option>
+                <option value="EXAVITQu4vr4xnSDxMaL">Bella — warm, friendly female</option>
+                <option value="ErXwobaYiN019PkySvjV">Antoni — well-rounded male</option>
+                <option value="VR6AewLTigWG4xSOukaG">Arnold — crisp news anchor male</option>
+                <option value="pNInz6obpgDQGcFmaJgB">Adam — deep authoritative male ← best for news</option>
+                <option value="yoZ06aMxZJJ28mfd3POQ">Sam — raspy, dynamic male</option>
+                <option value="onwK4e9ZLuTAKqWW03F9">Daniel — British newsreader male</option>
+              </select>
+            </div>
+          </div>
+
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:14px;">
+            <div>
+              <label>Stability <span id="el-stability-val" style="color:var(--accent);">0.50</span></label>
+              <input type="range" id="el-stability" min="0" max="1" step="0.05" value="0.50" oninput="document.getElementById('el-stability-val').textContent=parseFloat(this.value).toFixed(2)">
+            </div>
+            <div>
+              <label>Similarity <span id="el-similarity-val" style="color:var(--accent);">0.75</span></label>
+              <input type="range" id="el-similarity" min="0" max="1" step="0.05" value="0.75" oninput="document.getElementById('el-similarity-val').textContent=parseFloat(this.value).toFixed(2)">
+            </div>
+            <div>
+              <label>Style <span id="el-style-val" style="color:var(--accent);">0.00</span></label>
+              <input type="range" id="el-style" min="0" max="1" step="0.05" value="0.00" oninput="document.getElementById('el-style-val').textContent=parseFloat(this.value).toFixed(2)">
+            </div>
+          </div>
+
+          <div style="display:flex;gap:10px;align-items:center;">
+            <button class="btn btn-primary" style="background:var(--purple);color:#fff;" onclick="saveELConfig()" id="el-save-btn">💾 SAVE & TEST VOICE</button>
+            <div id="el-config-result" style="font-family:var(--font-mono);font-size:12px;color:var(--text3);flex:1;"></div>
           </div>
         </div>
 
@@ -1242,19 +1310,104 @@ Output: One clear DALL·E 3 prompt in 2-3 sentences. Then one line: "Text overla
   setPipeStep('thumb','done','done ✓');
   log('[00:37] Thumbnail prompt ready','bold');
 
-  // STEP 5: VOICEOVER
-  setPipeStep('voice','running','configuring...');
-  log('[00:38] Setting up ElevenLabs voiceover...','info');
-  const voicePrompt=`For a faceless YouTube news video about "${topic}" in "${style}" style, provide:
-1. RECOMMENDED VOICE: Best ElevenLabs voice type (e.g. "Adam - authoritative male newsreader")
-2. VOICE SETTINGS: Stability, similarity boost, style settings (0-100)
-3. PACING NOTES: Key words to emphasize, pause locations
-4. TOTAL RUNTIME: Estimated runtime based on script length
-Keep it brief and practical.`;
-  const voice=await callClaude(voicePrompt);
-  document.getElementById('res-voice-body').innerHTML=voice.replace(/\n/g,'<br>');
-  setPipeStep('voice','done','done ✓');
-  log('[00:44] Voiceover config ready','bold');
+  // STEP 5: VOICEOVER — REAL ELEVENLABS AUDIO
+  setPipeStep('voice','running','generating...');
+  log('[00:38] Sending script to ElevenLabs TTS...','info');
+  document.getElementById('el-audio-status').textContent='generating...';
+  document.getElementById('el-audio-status').className='tag tag-amber';
+  document.getElementById('el-audio-msg').textContent='Generating voiceover audio...';
+  document.getElementById('el-audio-player').style.display='none';
+
+  const elKey = localStorage.getItem('elApiKey');
+  const elVoiceId = localStorage.getItem('elVoiceId') || 'pNInz6obpgDQGcFmaJgB';
+  const elStability = parseFloat(localStorage.getItem('elStability')||'0.5');
+  const elSimilarity = parseFloat(localStorage.getItem('elSimilarity')||'0.75');
+  const elStyleVal = parseFloat(localStorage.getItem('elStyle')||'0.0');
+
+  if(elKey){
+    try {
+      // Clean script — remove B-roll notes and emoji headers for clean TTS
+      const cleanScript = script
+        .replace(/\[B-ROLL:[^\]]+\]/gi,'')
+        .replace(/[🔴📌📣🎬🎯⏱️═]+/g,'')
+        .replace(/\n{3,}/g,'\n\n')
+        .trim();
+
+      log('[00:39] Script cleaned for TTS ('+cleanScript.split(' ').length+' words)','dim');
+      log('[00:40] Calling ElevenLabs API...','info');
+
+      const elRes = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${elVoiceId}`, {
+        method: 'POST',
+        headers: {
+          'xi-api-key': elKey,
+          'Content-Type': 'application/json',
+          'Accept': 'audio/mpeg'
+        },
+        body: JSON.stringify({
+          text: cleanScript.slice(0, 5000),
+          model_id: 'eleven_monolingual_v1',
+          voice_settings: {
+            stability: elStability,
+            similarity_boost: elSimilarity,
+            style: elStyleVal,
+            use_speaker_boost: true
+          }
+        })
+      });
+
+      if(elRes.ok){
+        const audioBlob = await elRes.blob();
+        const audioUrl = URL.createObjectURL(audioBlob);
+        const audioEl = document.getElementById('audio-player');
+        audioEl.src = audioUrl;
+
+        // Store blob for download
+        window._lastAudioBlob = audioBlob;
+        window._lastAudioTopic = topic;
+
+        // Show player
+        document.getElementById('el-audio-player').style.display='block';
+        document.getElementById('el-audio-msg').textContent='';
+        document.getElementById('el-audio-status').textContent='✓ ready';
+        document.getElementById('el-audio-status').className='tag tag-green';
+
+        // Estimate duration
+        const estSecs = Math.round(cleanScript.split(' ').length / 2.5);
+        const mins = Math.floor(estSecs/60);
+        const secs = estSecs%60;
+        document.getElementById('el-audio-meta').textContent=`~${mins}:${String(secs).padStart(2,'0')} · ${Math.round(audioBlob.size/1024)}KB`;
+
+        setPipeStep('voice','done','done ✓');
+        log('[00:52] ✓ Voiceover generated! '+Math.round(audioBlob.size/1024)+'KB MP3 ready','bold');
+        log('[00:52] Press Play to preview or Download MP3','dim');
+      } else {
+        const errData = await elRes.json().catch(()=>({}));
+        const errMsg = errData?.detail?.message || elRes.statusText;
+        document.getElementById('el-audio-msg').innerHTML=`<span style="color:var(--accent3);">✗ ElevenLabs error: ${errMsg}</span>`;
+        document.getElementById('el-audio-status').textContent='error';
+        document.getElementById('el-audio-status').className='tag tag-red';
+        setPipeStep('voice','error','error');
+        log('[ERROR] ElevenLabs: '+errMsg,'err');
+      }
+    } catch(e){
+      document.getElementById('el-audio-msg').innerHTML=`<span style="color:var(--accent3);">✗ Network error: ${e.message}</span>`;
+      setPipeStep('voice','error','failed');
+      log('[ERROR] Voiceover failed: '+e.message,'err');
+    }
+  } else {
+    // No API key — show instructions
+    document.getElementById('el-audio-msg').innerHTML=`
+      <div style="color:var(--amber);margin-bottom:8px;">⚠ ElevenLabs API key not configured</div>
+      <div style="color:var(--text2);line-height:1.8;">
+        Go to <strong>Settings → ElevenLabs TTS</strong> → paste your API key → Save.<br>
+        Then rerun the pipeline to get real audio. Free tier: 10,000 chars/month.<br>
+        Get your key at <span style="color:var(--purple);">elevenlabs.io</span>
+      </div>`;
+    document.getElementById('el-audio-status').textContent='no api key';
+    document.getElementById('el-audio-status').className='tag tag-amber';
+    setPipeStep('voice','done','skipped');
+    log('[00:38] ElevenLabs key not set — go to Settings to configure','warn');
+  }
 
   // STEP 6: UPLOAD TO YOUTUBE
   setPipeStep('upload','running','publishing...');
@@ -1879,7 +2032,144 @@ async function uploadVideoFile(videoBlob, metadataOverride={}){
 }
 
 
-// Compute next available US posting slot
+// ============ ELEVENLABS CONFIG ============
+
+function onELInput(){
+  const key=document.getElementById('el-api-key').value.trim();
+  const btn=document.getElementById('el-save-btn');
+  if(btn) btn.disabled=!key;
+}
+
+async function saveELConfig(){
+  const key=document.getElementById('el-api-key').value.trim();
+  const voiceId=document.getElementById('el-voice-id').value;
+  const stability=document.getElementById('el-stability').value;
+  const similarity=document.getElementById('el-similarity').value;
+  const style=document.getElementById('el-style').value;
+
+  if(!key){ document.getElementById('el-config-result').innerHTML='<span style="color:var(--accent3);">⚠ Enter your API key first</span>'; return; }
+
+  const btn=document.getElementById('el-save-btn');
+  btn.disabled=true; btn.innerHTML='<span class="spinner"></span> Testing...';
+  document.getElementById('el-config-result').innerHTML='<span style="color:var(--text3);">Testing with ElevenLabs...</span>';
+
+  try {
+    // Test API key by fetching available voices
+    const res=await fetch('https://api.elevenlabs.io/v1/voices',{
+      headers:{'xi-api-key':key}
+    });
+    const data=await res.json();
+
+    if(data.voices){
+      // Save to localStorage
+      localStorage.setItem('elApiKey',key);
+      localStorage.setItem('elVoiceId',voiceId);
+      localStorage.setItem('elStability',stability);
+      localStorage.setItem('elSimilarity',similarity);
+      localStorage.setItem('elStyle',style);
+
+      // Quick test — generate 3 seconds of sample audio
+      const testRes=await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`,{
+        method:'POST',
+        headers:{'xi-api-key':key,'Content-Type':'application/json','Accept':'audio/mpeg'},
+        body:JSON.stringify({
+          text:'DailyFeedin. Breaking news, every day. Stay informed.',
+          model_id:'eleven_monolingual_v1',
+          voice_settings:{stability:parseFloat(stability),similarity_boost:parseFloat(similarity),style:parseFloat(style),use_speaker_boost:true}
+        })
+      });
+
+      if(testRes.ok){
+        const blob=await testRes.blob();
+        const url=URL.createObjectURL(blob);
+        const audio=new Audio(url);
+        audio.play();
+
+        // Update UI
+        ['el-status-tag','el-int-status'].forEach(id=>{
+          const el=document.getElementById(id);
+          if(el){el.textContent='connected ✓';el.className='tag tag-green';}
+        });
+        document.getElementById('el-config-result').innerHTML='<span style="color:var(--accent);">✓ Connected! Playing sample audio... Pipeline will auto-generate voiceover from now on.</span>';
+      } else {
+        document.getElementById('el-config-result').innerHTML='<span style="color:var(--accent3);">✗ Voice test failed. Check your API key.</span>';
+      }
+    } else {
+      document.getElementById('el-config-result').innerHTML='<span style="color:var(--accent3);">✗ Invalid API key</span>';
+    }
+  } catch(e){
+    document.getElementById('el-config-result').innerHTML=`<span style="color:var(--accent3);">✗ Error: ${e.message}</span>`;
+  }
+  btn.disabled=false; btn.innerHTML='💾 SAVE & TEST VOICE';
+}
+
+function downloadAudio(){
+  if(!window._lastAudioBlob) return;
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(window._lastAudioBlob);
+  a.download=(window._lastAudioTopic||'voiceover').replace(/[^a-z0-9]/gi,'-').toLowerCase()+'-voiceover.mp3';
+  a.click();
+}
+
+async function regenAudio(){
+  const script=document.getElementById('res-script-body').textContent;
+  if(!script){ alert('Run the pipeline first to generate a script.'); return; }
+  const topic=document.getElementById('pipe-topic').value.trim()||'news';
+  const elKey=localStorage.getItem('elApiKey');
+  const elVoiceId=localStorage.getItem('elVoiceId')||'pNInz6obpgDQGcFmaJgB';
+  if(!elKey){ alert('Add your ElevenLabs API key in Settings first.'); return; }
+
+  document.getElementById('el-audio-status').textContent='regenerating...';
+  document.getElementById('el-audio-status').className='tag tag-amber';
+  document.getElementById('el-audio-player').style.display='none';
+
+  const cleanScript=script.replace(/\[B-ROLL:[^\]]+\]/gi,'').replace(/[🔴📌📣🎬🎯⏱️═]+/g,'').trim();
+  const res=await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${elVoiceId}`,{
+    method:'POST',
+    headers:{'xi-api-key':elKey,'Content-Type':'application/json','Accept':'audio/mpeg'},
+    body:JSON.stringify({
+      text:cleanScript.slice(0,5000),
+      model_id:'eleven_monolingual_v1',
+      voice_settings:{
+        stability:parseFloat(localStorage.getItem('elStability')||'0.5'),
+        similarity_boost:parseFloat(localStorage.getItem('elSimilarity')||'0.75'),
+        style:parseFloat(localStorage.getItem('elStyle')||'0'),
+        use_speaker_boost:true
+      }
+    })
+  });
+  if(res.ok){
+    const blob=await res.blob();
+    window._lastAudioBlob=blob; window._lastAudioTopic=topic;
+    document.getElementById('audio-player').src=URL.createObjectURL(blob);
+    document.getElementById('el-audio-player').style.display='block';
+    document.getElementById('el-audio-status').textContent='✓ ready';
+    document.getElementById('el-audio-status').className='tag tag-green';
+  }
+}
+
+// Restore ElevenLabs config on load
+function restoreELConfig(){
+  const key=localStorage.getItem('elApiKey');
+  const voiceId=localStorage.getItem('elVoiceId');
+  const stability=localStorage.getItem('elStability');
+  const similarity=localStorage.getItem('elSimilarity');
+  const style=localStorage.getItem('elStyle');
+
+  if(key){
+    const el=document.getElementById('el-api-key');
+    if(el) el.value=key;
+    if(voiceId){ const v=document.getElementById('el-voice-id'); if(v) v.value=voiceId; }
+    if(stability){ const s=document.getElementById('el-stability'); if(s){ s.value=stability; document.getElementById('el-stability-val').textContent=parseFloat(stability).toFixed(2); }}
+    if(similarity){ const s=document.getElementById('el-similarity'); if(s){ s.value=similarity; document.getElementById('el-similarity-val').textContent=parseFloat(similarity).toFixed(2); }}
+    if(style){ const s=document.getElementById('el-style'); if(s){ s.value=style; document.getElementById('el-style-val').textContent=parseFloat(style).toFixed(2); }}
+
+    ['el-status-tag','el-int-status'].forEach(id=>{
+      const el=document.getElementById(id);
+      if(el){el.textContent='connected ✓';el.className='tag tag-green';}
+    });
+  }
+}
 function getNextPublishSlot(){
   const slots=[
     document.getElementById('p-slot1')?.value||'07:00',
@@ -2035,8 +2325,10 @@ window.addEventListener('load',()=>{
   refreshQueue();
   setInterval(updateNextSlotDisplay, 30000);
   restoreYTConnection();
+  restoreELConfig();
 });
 
 </script>
 </body>
 </html>
+
