@@ -45,7 +45,7 @@
 
   /* SIDEBAR NAV */
   .nav-section { font-family: var(--font-mono); font-size: 10px; color: var(--text3); letter-spacing: 0.1em; padding: 16px 16px 6px; text-transform: uppercase; }
-  .nav-item { display: flex; align-items: center; gap: 10px; padding: 8px 16px; cursor: pointer; transition: all 0.15s; color: var(--text2); font-size: 13px; border-left: 2px solid transparent; }
+  .nav-item { display: flex; align-items: center; gap: 10px; padding: 8px 16px; cursor: pointer; transition: background 0.15s, color 0.15s; color: var(--text2); font-size: 13px; border-left: 2px solid transparent; }
   .nav-item:hover { background: var(--bg3); color: var(--text); }
   .nav-item.active { background: var(--bg3); color: var(--accent); border-left-color: var(--accent); }
   .nav-icon { font-size: 15px; width: 18px; text-align: center; }
@@ -78,7 +78,7 @@
 
   /* PIPELINE */
   .pipeline { display: flex; align-items: center; gap: 0; margin-bottom: 20px; }
-  .pipe-step { flex: 1; background: var(--bg2); border: 1px solid var(--border); border-radius: 6px; padding: 14px 10px; text-align: center; position: relative; transition: all 0.2s; cursor: pointer; }
+  .pipe-step { flex: 1; background: var(--bg2); border: 1px solid var(--border); border-radius: 6px; padding: 14px 10px; text-align: center; position: relative; transition: border-color 0.2s, background 0.2s; cursor: pointer; }
   .pipe-step:hover { border-color: var(--accent); }
   .pipe-step.running { border-color: var(--accent); background: rgba(0,229,160,0.05); }
   .pipe-step.done { border-color: rgba(0,229,160,0.3); }
@@ -92,7 +92,7 @@
   .pipe-step.error .pipe-status { color: var(--accent3); }
 
   /* BUTTONS */
-  .btn { display: inline-flex; align-items: center; gap: 7px; padding: 8px 16px; border-radius: 5px; font-size: 13px; font-weight: 500; cursor: pointer; transition: all 0.15s; border: none; font-family: var(--font-sans); }
+  .btn { display: inline-flex; align-items: center; gap: 7px; padding: 8px 16px; border-radius: 5px; font-size: 13px; font-weight: 500; cursor: pointer; transition: background 0.15s, color 0.15s, opacity 0.15s; border: none; font-family: var(--font-sans); }
   .btn-primary { background: var(--accent); color: #000; font-weight: 600; }
   .btn-primary:hover { background: #00ffb3; }
   .btn-primary:disabled { opacity: 0.4; cursor: not-allowed; }
@@ -104,7 +104,7 @@
   input[type=text], textarea, select {
     background: var(--bg3); border: 1px solid var(--border2); border-radius: 5px;
     color: var(--text); font-family: var(--font-sans); font-size: 13px;
-    padding: 9px 12px; outline: none; transition: border 0.15s; width: 100%;
+    padding: 9px 12px; outline: none; transition: border-color 0.15s; width: 100%;
   }
   input[type=text]:focus, textarea:focus, select:focus { border-color: var(--accent); }
   textarea { resize: vertical; min-height: 120px; line-height: 1.6; }
@@ -184,7 +184,7 @@
   .result-card-body { padding: 16px; }
 
   /* COPY BTN */
-  .copy-btn { background: transparent; border: 1px solid var(--border2); border-radius: 4px; color: var(--text3); font-size: 11px; font-family: var(--font-mono); padding: 3px 8px; cursor: pointer; margin-left: auto; transition: all 0.15s; }
+  .copy-btn { background: transparent; border: 1px solid var(--border2); border-radius: 4px; color: var(--text3); font-size: 11px; font-family: var(--font-mono); padding: 3px 8px; cursor: pointer; margin-left: auto; transition: border-color 0.15s, color 0.15s; }
   .copy-btn:hover { border-color: var(--accent); color: var(--accent); }
 
   /* ANIM */
@@ -196,7 +196,7 @@
 
   /* TOGGLE */
   .toggle-group { display: flex; gap: 6px; flex-wrap: wrap; }
-  .tgl { background: var(--bg3); border: 1px solid var(--border); border-radius: 4px; padding: 6px 12px; font-size: 12px; cursor: pointer; color: var(--text2); transition: all 0.15s; font-family: var(--font-mono); }
+  .tgl { background: var(--bg3); border: 1px solid var(--border); border-radius: 4px; padding: 6px 12px; font-size: 12px; cursor: pointer; color: var(--text2); transition: background 0.15s, color 0.15s, border-color 0.15s; font-family: var(--font-mono); }
   .tgl:hover { border-color: var(--border2); color: var(--text); }
   .tgl.on { background: rgba(0,229,160,0.1); border-color: var(--accent); color: var(--accent); }
 
@@ -972,7 +972,7 @@
               </div>
               <div style="text-align:right;">
                 <div style="font-size:11px;color:var(--text3);font-family:var(--font-mono);">Token expires in</div>
-                <div id="yt-token-timer" style="font-size:13px;font-weight:600;font-family:var(--font-mono);color:var(--amber);">--:--</div>
+                <div id="yt-token-timer" style="font-size:13px;font-weight:600;font-family:var(--font-mono);color:var(--amber);min-width:45px;text-align:right;">--:--</div>
                 <div style="font-size:10px;color:var(--accent);font-family:var(--font-mono);">auto-refreshes ♻</div>
               </div>
             </div>
