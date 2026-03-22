@@ -1215,18 +1215,29 @@ function log(msg,cls=''){
 
 // CLAUDE API CALL
 async function callClaude(prompt, systemPrompt='You are an expert faceless YouTube content creator. Respond directly without preamble.'){
-  const res=await fetch('https://api.anthropic.com/v1/messages',{
-    method:'POST',
-    headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({
-      model:'claude-sonnet-4-20250514',
-      max_tokens:1000,
-      system: systemPrompt,
-      messages:[{role:'user',content:prompt}]
-    })
-  });
-  const data=await res.json();
-  return data.content.map(b=>b.text||'').join('');
+  const controller = new AbortController();
+  const timeout = setTimeout(()=>controller.abort(), 25000);
+  try {
+    const res=await fetch('https://api.anthropic.com/v1/messages',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      signal: controller.signal,
+      body:JSON.stringify({
+        model:'claude-sonnet-4-20250514',
+        max_tokens:1000,
+        system: systemPrompt,
+        messages:[{role:'user',content:prompt}]
+      })
+    });
+    clearTimeout(timeout);
+    const data=await res.json();
+    if(data.error) throw new Error(data.error.message||'API error');
+    return data.content.map(b=>b.text||'').join('');
+  } catch(e) {
+    clearTimeout(timeout);
+    if(e.name==='AbortError') throw new Error('timeout');
+    throw e;
+  }
 }
 
 // COPY
@@ -1562,27 +1573,48 @@ async function findTrends(){
   btn.disabled=true; btn.innerHTML='<span class="spinner"></span> Fetching...';
   const out=document.getElementById('trends-output');
   out.innerHTML='<div style="padding:20px;text-align:center;color:var(--text3);font-family:var(--font-mono);font-size:12px;"><span class="spinner"></span> Analyzing trends...</div>';
+  document.getElementById('trend-ideas-section').style.display='none';
 
-  const res=await callClaude(`List the top 8 trending news topics right now (March 14, 2026) that would make great faceless YouTube videos. For each provide:
+  const today = new Date().toLocaleDateString('en-US',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
+
+  try {
+    const res = await Promise.race([
+      callClaude(`List the top 8 trending news topics right now (today is ${today}) that would make great faceless YouTube videos. For each provide:
 - Emoji category icon
 - Topic title (punchy, 5-8 words)
 - Volume indicator (🔥🔥🔥 = viral, 🔥🔥 = trending, 🔥 = rising)
 - One-line reason it's viral
 
-Format as a clean numbered list. Be specific with real current events.`);
+Format as a clean numbered list. Be specific with real current events.`),
+      new Promise((_,reject) => setTimeout(()=>reject(new Error('timeout')), 20000))
+    ]);
 
-  out.innerHTML='<div style="padding:16px;font-size:13px;line-height:2;white-space:pre-wrap;">'+res+'</div>';
+    out.innerHTML='<div style="padding:16px;font-size:13px;line-height:2;white-space:pre-wrap;">'+res+'</div>';
 
-  const ideasRes=await callClaude(`Based on these current trends (March 14, 2026), generate 5 specific video ideas for faceless YouTube channels. For each:
+    const ideasRes = await Promise.race([
+      callClaude(`Based on trending news topics today (${today}), generate 5 specific video ideas for faceless YouTube channels. For each:
 - VIDEO TITLE: High-CTR title
 - HOOK LINE: First sentence to grab attention
 - NICHE: Which channel type it fits best
 - EST. VIEWS: Realistic view estimate for new channel
 
-Format cleanly, numbered 1-5.`);
+Format cleanly, numbered 1-5.`),
+      new Promise((_,reject) => setTimeout(()=>reject(new Error('timeout')), 20000))
+    ]);
 
-  document.getElementById('trend-ideas').innerHTML=ideasRes.replace(/\n/g,'<br>');
-  document.getElementById('trend-ideas-section').style.display='block';
+    document.getElementById('trend-ideas').innerHTML=ideasRes.replace(/\n/g,'<br>');
+    document.getElementById('trend-ideas-section').style.display='block';
+
+  } catch(e) {
+    const msg = e.message==='timeout'
+      ? '⚠ Request timed out. Check your internet connection and try again.'
+      : '⚠ Error: '+e.message;
+    out.innerHTML=`<div style="padding:20px;font-family:var(--font-mono);font-size:12px;color:var(--accent3);">${msg}</div>
+      <div style="padding:0 20px 20px;font-size:12px;color:var(--text3);">
+        <button class="btn btn-ghost" onclick="findTrends()" style="margin-top:8px;">↺ Try Again</button>
+      </div>`;
+  }
+
   btn.disabled=false; btn.innerHTML='📡 FIND TRENDING TOPICS';
 }
 
