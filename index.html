@@ -33,7 +33,7 @@
   .app { display: grid; grid-template-columns: 220px 1fr; grid-template-rows: 48px 1fr; height: 100vh; }
   .topbar { grid-column: 1/-1; display: flex; align-items: center; gap: 12px; padding: 0 20px; background: var(--bg2); border-bottom: 1px solid var(--border); z-index: 10; }
   .sidebar { background: var(--bg2); border-right: 1px solid var(--border); display: flex; flex-direction: column; padding: 12px 0; overflow-y: auto; }
-  .main { background: var(--bg); overflow-y: auto; padding: 24px; overflow-anchor: none; scroll-behavior: auto; }
+  .main { background: var(--bg); overflow-y: auto; padding: 24px; }
 
   /* TOPBAR */
   .logo { font-family: var(--font-mono); font-size: 13px; font-weight: 600; color: var(--accent); letter-spacing: 0.1em; }
@@ -52,8 +52,8 @@
   .nav-badge { margin-left: auto; background: var(--accent); color: #000; font-family: var(--font-mono); font-size: 10px; font-weight: 600; padding: 1px 6px; border-radius: 3px; }
 
   /* PANELS */
-  .panel { display: none; overflow-anchor: none; }
-  .panel.active { display: block; overflow-anchor: none; }
+  .panel { display: none; }
+  .panel.active { display: block; }
 
   /* SECTION HEADER */
   .section-hdr { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; }
@@ -484,7 +484,7 @@
             <select><option>United States</option><option>Global</option><option>UK</option><option>Canada</option></select>
           </div>
           <div style="margin-top:16px;">
-            <button class="btn btn-primary" id="trend-btn" onclick="findTrends()" style="width:100%;">📡 FIND TRENDING TOPICS</button>
+            <button class="btn btn-primary" id="trend-btn" onclick="findTrends()" style="width:100%;">📡 FETCH LIVE NEWS</button>
           </div>
         </div>
         <div>
@@ -1107,11 +1107,23 @@
           <div class="form-row"><label>Script Tone</label><select><option>Neutral / Factual</option><option>Dramatic / Urgent</option><option>Calm / Analytical</option></select></div>
           <div class="form-row"><label>Default Language</label><select><option>English (US)</option><option>English (UK)</option><option>Spanish</option></select></div>
           <hr class="divider">
+          <div class="card-label" style="margin-bottom:12px;">📡 NEWS API — NewsData.io</div>
+          <div style="background:var(--bg3);border:1px solid var(--border);border-radius:5px;padding:10px 12px;font-size:12px;color:var(--text2);margin-bottom:10px;line-height:1.7;">
+            Free tier: 200 requests/day. Get key at <span style="color:#4d9fff;font-family:var(--font-mono);">newsdata.io</span> → Sign up → API Key tab.<br>
+            Leave blank to use Google RSS fallback (free, no key needed).
+          </div>
+          <div class="form-row">
+            <label>NewsData.io API Key <span style="color:var(--text3);font-weight:400;">(optional — Google RSS used if blank)</span></label>
+            <input type="password" id="newsdata-key" placeholder="pub_xxxxxxxxxxxxxxxxxxxxxxxx" oninput="saveNewsdataKey()">
+          </div>
+          <div id="newsdata-status" style="font-family:var(--font-mono);font-size:11px;color:var(--text3);margin-top:4px;"></div>
+          <hr class="divider">
           <div class="card-label" style="margin-bottom:12px;">🔌 INTEGRATIONS</div>
           <div style="display:flex;flex-direction:column;gap:10px;">
             <div style="display:flex;align-items:center;gap:10px;"><span style="flex:1;font-size:13px;">YouTube OAuth 2.0</span><span id="yt-int-status" class="tag tag-amber">not connected</span></div>
             <div style="display:flex;align-items:center;gap:10px;"><span style="flex:1;font-size:13px;">ElevenLabs TTS</span><span id="el-int-status" class="tag tag-amber">not configured</span></div>
-            <div style="display:flex;align-items:center;gap:10px;"><span style="flex:1;font-size:13px;">Google Trends API</span><span class="tag tag-amber">configure</span></div>
+            <div style="display:flex;align-items:center;gap:10px;"><span style="flex:1;font-size:13px;">NewsData.io</span><span id="nd-int-status" class="tag tag-amber">using RSS fallback</span></div>
+            <div style="display:flex;align-items:center;gap:10px;"><span style="flex:1;font-size:13px;">Google News RSS</span><span class="tag tag-green">free · always on</span></div>
             <div style="display:flex;align-items:center;gap:10px;"><span style="flex:1;font-size:13px;">Pexels Stock Video</span><span class="tag tag-amber">configure</span></div>
           </div>
         </div>
@@ -1182,30 +1194,19 @@
 </div>
 
 <script>
-// CLOCK — fixed width prevents layout reflow
+// CLOCK
 function updateClock(){
-  const el = document.getElementById('clock');
-  if(!el) return;
-  const newTime = new Date().toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false})+' EST';
-  if(el.textContent !== newTime) el.textContent = newTime;
+  const now=new Date();
+  document.getElementById('clock').textContent=now.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false})+' EST';
 }
 setInterval(updateClock,1000); updateClock();
 
-// PANEL NAV — preserves scroll position per panel
-const panelScrollPos = {};
+// PANEL NAV
 function showPanel(id,el){
-  // Save current scroll position
-  const main = document.getElementById('main-content');
-  const current = document.querySelector('.panel.active');
-  if(current) panelScrollPos[current.id] = main.scrollTop;
-
   document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
   document.getElementById('panel-'+id).classList.add('active');
   el.classList.add('active');
-
-  // Restore scroll position for this panel (or go to top)
-  main.scrollTop = panelScrollPos['panel-'+id] || 0;
 }
 
 // TOGGLE LEN
@@ -1224,17 +1225,17 @@ function log(msg,cls=''){
   logEl.scrollTop=logEl.scrollHeight;
 }
 
-// AI CALL — FREE via Groq (llama-3.3-70b, 14400 req/day free)
+// CLAUDE API CALL — proxied through Netlify function to fix CORS
 async function callClaude(prompt, systemPrompt='You are an expert faceless YouTube content creator. Respond directly without preamble.', maxTokens=1000){
   const controller = new AbortController();
   const timeout = setTimeout(()=>controller.abort(), 25000);
   try {
-    const res = await fetch('/api/handler', {
+    const res = await fetch('/.netlify/functions/youtube-auth', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       signal: controller.signal,
       body: JSON.stringify({
-        action: 'ai',
+        action: 'claude',
         prompt,
         system: systemPrompt,
         max_tokens: maxTokens
@@ -1280,18 +1281,60 @@ async function runPipeline(){
   const style=document.getElementById('pipe-style').value;
   const channel=document.getElementById('pipe-channel').value;
 
-  // STEP 1: TRENDS
+  // STEP 1: REAL NEWS FETCH
   setPipeStep('trend','running','fetching...');
   log('[00:01] Starting pipeline...','dim');
-  log('[00:02] Scraping trending topics...','info');
-  await sleep(600);
-  log('[00:03] Topic identified: '+topic,'bold');
+  log('[00:02] Fetching live news from NewsData.io / Google RSS...','info');
+
+  let realTopic = topic;
+  let newsSource = 'manual';
+
+  if(!topic){
+    try {
+      const newsKey = localStorage.getItem('newsdataApiKey') || '';
+      const niche = channel.includes('Tech') ? 'Tech & AI' :
+                    channel.includes('Finance') ? 'Finance' :
+                    channel.includes('Politics') ? 'Politics' : 'Breaking News';
+
+      const newsRes = await fetch('/.netlify/functions/youtube-auth', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'news_fetch', niche, news_api_key: newsKey })
+      });
+      const newsData = await newsRes.json();
+
+      if(newsData.articles && newsData.articles.length > 0){
+        // Let Claude pick the best story for YouTube
+        const headlines = newsData.articles.map((a,i) => `${i+1}. ${a.title} (${a.source})`).join('\n');
+        const pickRes = await callClaude(`From these real news headlines, pick the ONE best for a faceless YouTube breaking news video. Choose based on: high search interest, broad US audience appeal, visual storytelling potential.\n\nHeadlines:\n${headlines}\n\nReply with ONLY the number of your choice (1-${newsData.articles.length}), nothing else.`);
+        const pick = parseInt(pickRes.trim()) - 1;
+        const chosen = newsData.articles[Math.max(0, Math.min(pick, newsData.articles.length-1))];
+        realTopic = chosen.title + (chosen.description ? '. ' + chosen.description : '');
+        newsSource = newsData.source;
+        log(`[00:04] Source: ${newsData.source === 'newsdata' ? 'NewsData.io ✓' : 'Google RSS ✓'}`, 'info');
+        log(`[00:05] Story selected: "${chosen.title}"`, 'bold');
+        log(`[00:05] Source: ${chosen.source}`, 'dim');
+      } else {
+        log('[00:04] No news returned — using Claude for trending topic','warn');
+        const aiTopic = await callClaude('Name ONE specific breaking news story trending in the US right now today. Reply with just the headline, nothing else.');
+        realTopic = aiTopic.trim();
+        log(`[00:05] AI topic: "${realTopic}"`, 'bold');
+      }
+    } catch(e) {
+      log('[00:04] News fetch failed — using Claude fallback','warn');
+      const aiTopic = await callClaude('Name ONE specific breaking news story trending in the US right now today. Reply with just the headline, nothing else.');
+      realTopic = aiTopic.trim();
+    }
+  } else {
+    log(`[00:03] Using manual topic: "${topic}"`, 'bold');
+  }
+
   setPipeStep('trend','done','done ✓');
 
   // STEP 2: SCRIPT
   setPipeStep('script','running','generating...');
-  log('[00:05] Generating script with Claude...','info');
-  const scriptPrompt=`Write a complete faceless YouTube news script about: "${topic}". Style: ${style}. Channel: ${channel}.
+  log('[00:06] Generating script with Claude...','info');
+  const scriptPrompt=`Write a complete faceless YouTube news script about: "${realTopic}". Style: ${style}. Channel: ${channel}.
 
 Format with clearly labeled sections:
 🔴 HOOK (0:00–0:20): Attention-grabbing opening, no personal references
@@ -1310,7 +1353,7 @@ Rules: No "I", no face reveal references. Voiceover-ready. Urgent tone. Include 
   // STEP 3: SEO
   setPipeStep('seo','running','optimizing...');
   log('[00:19] Building SEO pack...','info');
-  const seoPrompt=`For this YouTube video about "${topic}" on channel "${channel}", generate:
+  const seoPrompt=`For this YouTube video about "${realTopic}" on channel "${channel}", generate:
 1. BEST TITLE: One perfect high-CTR title (max 60 chars)
 2. 4 ALTERNATE TITLES: 4 more title variations
 3. DESCRIPTION: 3-sentence YouTube description with keywords
@@ -1324,7 +1367,7 @@ Keep it concise and formatted clearly.`;
   // STEP 4: THUMBNAIL
   setPipeStep('thumb','running','prompting...');
   log('[00:30] Generating thumbnail prompt...','info');
-  const thumbPrompt=`Create a DALL·E 3 image generation prompt for a YouTube thumbnail about: "${topic}".
+  const thumbPrompt=`Create a DALL·E 3 image generation prompt for a YouTube thumbnail about: "${realTopic}".
 Requirements: Bold text overlay space, dramatic lighting, news-style urgency, no real people's faces, photorealistic.
 Output: One clear DALL·E 3 prompt in 2-3 sentences. Then one line: "Text overlay: [suggested headline text in caps]"`;
   const thumb=await callClaude(thumbPrompt);
@@ -1358,7 +1401,7 @@ Output: One clear DALL·E 3 prompt in 2-3 sentences. Then one line: "Text overla
       log('[00:39] Script cleaned for TTS ('+cleanScript.split(' ').length+' words)','dim');
       log('[00:40] Calling ElevenLabs API...','info');
 
-      const elRes = await fetch('/api/handler', {
+      const elRes = await fetch('/.netlify/functions/youtube-auth', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -1578,73 +1621,85 @@ function resetPipeline(){
   document.getElementById('run-btn').innerHTML='▶ RUN FULL PIPELINE';
 }
 
-// ============ TREND FINDER — Real Google News RSS (FREE) ============
-async function findTrends(){
-  const btn=document.getElementById('trend-btn');
-  btn.disabled=true; btn.innerHTML='<span class="spinner"></span> Fetching...';
-  const out=document.getElementById('trends-output');
-  out.innerHTML='<div style="padding:20px;text-align:center;color:var(--text3);font-family:var(--font-mono);font-size:12px;"><span class="spinner"></span> Fetching live news from Google...</div>';
-  document.getElementById('trend-ideas-section').style.display='none';
-
-  const today = new Date().toLocaleDateString('en-US',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
-
-  try {
-    // Fetch real trending news from Google News RSS
-    const rssRes = await fetch('/api/handler', {
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ action:'trends', topic:'breaking news' })
-    });
-    const rssData = await rssRes.json();
-    const headlines = rssData.items || [];
-
-    if(headlines.length > 0){
-      // Display real headlines
-      out.innerHTML = '<div style="padding:4px 0;">' +
-        headlines.map((item,i) => `
-          <div class="trend-item" onclick="useTrend('${item.title.replace(/'/g,"\\'")}')">
-            <span class="trend-num">${i+1}</span>
-            <div style="flex:1;">
-              <div class="trend-title">${item.title}</div>
-              <div style="font-size:11px;color:var(--text3);font-family:var(--font-mono);">${item.source} · ${item.pubDate ? new Date(item.pubDate).toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'}) : 'just now'}</div>
-            </div>
-            <span class="tag tag-blue" style="font-size:10px;">use →</span>
-          </div>`).join('') +
-        '</div>';
-
-      // Generate video ideas from real headlines
-      const headlineList = headlines.slice(0,5).map(h=>h.title).join('\n');
-      const ideasRes = await Promise.race([
-        callClaude(`These are today's real trending news headlines from Google News:\n${headlineList}\n\nGenerate 5 specific faceless YouTube video ideas based on these. For each:\n- VIDEO TITLE: High-CTR clickable title (max 60 chars)\n- HOOK LINE: First 2 sentences to grab attention\n- WHY IT'S VIRAL: One line\n\nNumbered 1-5. Be specific to each headline.`),
-        new Promise((_,reject)=>setTimeout(()=>reject(new Error('timeout')),20000))
-      ]);
-
-      document.getElementById('trend-ideas').innerHTML=ideasRes.replace(/\n/g,'<br>');
-      document.getElementById('trend-ideas-section').style.display='block';
-
-    } else {
-      throw new Error('No headlines returned');
-    }
-
-  } catch(e) {
-    const msg = e.message==='timeout' ? '⚠ Request timed out. Try again.' : '⚠ '+e.message;
-    out.innerHTML=`<div style="padding:20px;font-family:var(--font-mono);font-size:12px;color:var(--accent3);">${msg}</div>
-      <button class="btn btn-ghost" onclick="findTrends()" style="margin:0 20px 20px;">↺ Try Again</button>`;
+// ============ NEWSDATA KEY ============
+function saveNewsdataKey(){
+  const key=document.getElementById('newsdata-key').value.trim();
+  if(key){
+    localStorage.setItem('newsdataApiKey',key);
+    document.getElementById('newsdata-status').innerHTML='<span style="color:var(--accent);">✓ Key saved</span>';
+    const nd=document.getElementById('nd-int-status');
+    if(nd){nd.textContent='connected ✓';nd.className='tag tag-green';}
   }
-
-  btn.disabled=false; btn.innerHTML='📡 FIND TRENDING TOPICS';
+}
+function restoreNewsdataKey(){
+  const key=localStorage.getItem('newsdataApiKey');
+  const el=document.getElementById('newsdata-key');
+  if(key&&el){
+    el.value=key;
+    const nd=document.getElementById('nd-int-status');
+    if(nd){nd.textContent='connected ✓';nd.className='tag tag-green';}
+  }
+}
+function useTopic(title){
+  const el=document.getElementById('pipe-topic');
+  if(el) el.value=title;
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  document.getElementById('panel-pipeline').classList.add('active');
+  const pipeNav=document.querySelector('.nav-item[onclick*="pipeline"]');
+  if(pipeNav) pipeNav.classList.add('active');
 }
 
-function useTrend(title){
-  // Auto-fill topic into pipeline and script writer
-  const pipeInput = document.getElementById('pipe-topic');
-  const swInput = document.getElementById('sw-topic');
-  if(pipeInput) pipeInput.value = title;
-  if(swInput) swInput.value = title;
-  // Switch to pipeline
-  document.querySelectorAll('.nav-item').forEach(n=>{
-    if(n.textContent.includes('Pipeline')) n.click();
-  });
+// ============ TREND FINDER ============
+async function findTrends(){
+  const btn=document.getElementById('trend-btn');
+  btn.disabled=true; btn.innerHTML='<span class="spinner"></span> Fetching live news...';
+  const out=document.getElementById('trends-output');
+  out.innerHTML='<div style="padding:20px;text-align:center;color:var(--text3);font-family:var(--font-mono);font-size:12px;"><span class="spinner"></span> Calling NewsData.io / Google RSS...</div>';
+  document.getElementById('trend-ideas-section').style.display='none';
+
+  const selected=[...document.querySelectorAll('#niche-filters .tgl.on')].map(el=>el.textContent.trim());
+  const niche=selected[0]||'Breaking News';
+  const newsKey=localStorage.getItem('newsdataApiKey')||'';
+
+  try {
+    const newsRes=await fetch('/.netlify/functions/youtube-auth',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({action:'news_fetch',niche,news_api_key:newsKey})
+    });
+    const newsData=await newsRes.json();
+
+    if(newsData.articles&&newsData.articles.length>0){
+      const sourceLabel=newsData.source==='newsdata'
+        ?'<span style="color:var(--accent);">NewsData.io ✓</span>'
+        :'<span style="color:var(--amber);">Google RSS (free fallback)</span>';
+      out.innerHTML=`
+        <div style="padding:10px 14px;border-bottom:1px solid var(--border);font-family:var(--font-mono);font-size:10px;color:var(--text3);display:flex;justify-content:space-between;">
+          <span>SOURCE: ${sourceLabel}</span>
+          <span>${newsData.articles.length} articles · ${new Date().toLocaleTimeString()}</span>
+        </div>
+        ${newsData.articles.map((a,i)=>`
+        <div class="trend-item">
+          <span class="trend-num">${i+1}</span>
+          <div style="flex:1;">
+            <div class="trend-title">${a.title}</div>
+            <div style="font-size:11px;color:var(--text3);margin-top:2px;">${a.source} · ${a.category}</div>
+          </div>
+          <button class="copy-btn" onclick="useTopic('${a.title.replace(/'/g,"\\'").replace(/"/g,'&quot;')}')" style="border-color:rgba(0,229,160,0.3);color:var(--accent);">use →</button>
+        </div>`).join('')}`;
+
+      const headlines=newsData.articles.slice(0,5).map((a,i)=>`${i+1}. ${a.title} (${a.source})`).join('\n');
+      const ideasRes=await callClaude(`Based on these REAL live news headlines, generate 5 YouTube video ideas for DailyFeedin (Breaking News faceless channel):\n\n${headlines}\n\nFor each:\n- VIDEO TITLE: High-CTR title max 60 chars\n- HOOK: First 15 seconds to grab attention\n- EST. VIEWS: Realistic estimate for new channel\n\nFormat numbered 1-5. Be specific to these real stories.`);
+      document.getElementById('trend-ideas').innerHTML=ideasRes.replace(/\n/g,'<br>');
+      document.getElementById('trend-ideas-section').style.display='block';
+    } else {
+      out.innerHTML=`<div style="padding:20px;color:var(--accent3);font-family:var(--font-mono);font-size:12px;">No articles returned: ${newsData.error||'Unknown error'}.<br><br>Add a NewsData.io key in Settings, or check your internet.</div>`;
+    }
+  } catch(e){
+    out.innerHTML=`<div style="padding:20px;color:var(--accent3);font-family:var(--font-mono);font-size:12px;">✗ ${e.message}<br><br><button class="btn btn-ghost" onclick="findTrends()">↺ Retry</button></div>`;
+  }
+  btn.disabled=false; btn.innerHTML='📡 FETCH LIVE NEWS';
 }
 
 // ============ SCRIPT WRITER ============
@@ -1917,7 +1972,7 @@ async function connectYTPermanent(){
 
 // Cloudflare Worker URL — handles CORS + proxies Google OAuth
 // Replace with YOUR worker URL after deploying cloudflare-worker.js
-const CF_WORKER = '/api/handler';
+const CF_WORKER = '/.netlify/functions/youtube-auth';
 
 async function refreshAccessToken(refreshToken, clientId, clientSecret){
   try {
@@ -1970,25 +2025,17 @@ function startAutoRefresh(){
     console.log('✓ YouTube token auto-refreshed at', new Date().toLocaleTimeString());
   }, 50 * 60 * 1000);
 
-  // Countdown timer — fixed width prevents layout reflow and scroll jump
-  const timerEl = document.getElementById('yt-token-timer');
-  if(timerEl){
-    timerEl.style.cssText += ';will-change:contents;contain:strict;width:45px;display:inline-block;';
-  }
+  // Countdown timer display
   tokenCountdownTimer = setInterval(()=>{
-    const auth = YT.load();
+    const auth=YT.load();
     if(!auth.expiresAt) return;
     const remaining = Math.max(0, auth.expiresAt - Date.now());
     const min = Math.floor(remaining/60000);
     const sec = Math.floor((remaining%60000)/1000);
-    const newText = `${String(min).padStart(2,'0')}:${String(sec).padStart(2,'0')}`;
-    const el = document.getElementById('yt-token-timer');
-    if(!el) return;
-    // Only update DOM if value actually changed — prevents unnecessary reflows
-    if(el.textContent !== newText){
-      el.textContent = newText;
-      el.style.color = remaining < 300000 ? 'var(--accent3)' : 'var(--amber)';
-    }
+    const el=document.getElementById('yt-token-timer');
+    if(el) el.textContent=`${String(min).padStart(2,'0')}:${String(sec).padStart(2,'0')}`;
+    if(remaining < 300000 && el) el.style.color='var(--accent3)';
+    else if(el) el.style.color='var(--amber)';
   }, 1000);
 }
 
@@ -2136,7 +2183,7 @@ async function saveELConfig(){
 
   try {
     // Verify via Netlify function (no CORS issues)
-    const verifyRes=await fetch('/api/handler',{
+    const verifyRes=await fetch('/.netlify/functions/youtube-auth',{
       method:'POST',
       headers:{'Content-Type':'application/json'},
       body:JSON.stringify({ action:'el_verify', api_key:key })
@@ -2158,7 +2205,7 @@ async function saveELConfig(){
     document.getElementById('el-config-result').innerHTML='<span style="color:var(--text3);">Generating sample audio...</span>';
 
     // Generate test audio via Netlify function
-    const ttsRes=await fetch('/api/handler',{
+    const ttsRes=await fetch('/.netlify/functions/youtube-auth',{
       method:'POST',
       headers:{'Content-Type':'application/json'},
       body:JSON.stringify({
@@ -2215,7 +2262,7 @@ async function regenAudio(){
   document.getElementById('el-audio-player').style.display='none';
 
   const cleanScript=script.replace(/\[B-ROLL:[^\]]+\]/gi,'').replace(/[🔴📌📣🎬🎯⏱️═]+/g,'').trim();
-  const res=await fetch('/api/handler',{
+  const res=await fetch('/.netlify/functions/youtube-auth',{
     method:'POST',
     headers:{'Content-Type':'application/json'},
     body:JSON.stringify({
@@ -2425,6 +2472,7 @@ window.addEventListener('load',()=>{
   setInterval(updateNextSlotDisplay, 30000);
   restoreYTConnection();
   restoreELConfig();
+  restoreNewsdataKey();
 });
 
 </script>
