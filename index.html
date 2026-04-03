@@ -1210,8 +1210,46 @@
           <div style="display:flex;flex-direction:column;gap:10px;">
             <div style="display:flex;align-items:center;gap:10px;"><span style="flex:1;font-size:13px;">YouTube OAuth 2.0</span><span id="yt-int-status" class="tag tag-amber">not connected</span></div>
             <div style="display:flex;align-items:center;gap:10px;"><span style="flex:1;font-size:13px;">ElevenLabs TTS</span><span id="el-int-status" class="tag tag-amber">not configured</span></div>
-            <div style="display:flex;align-items:center;gap:10px;"><span style="flex:1;font-size:13px;">Google Trends API</span><span class="tag tag-amber">configure</span></div>
-            <div style="display:flex;align-items:center;gap:10px;"><span style="flex:1;font-size:13px;">Pexels Stock Video</span><span class="tag tag-amber">configure</span></div>
+            <div style="display:flex;align-items:center;gap:10px;"><span style="flex:1;font-size:13px;">Groq AI (Script Writer)</span><span class="tag tag-blue">set in Vercel env</span></div>
+            <div style="display:flex;align-items:center;gap:10px;"><span style="flex:1;font-size:13px;">Google News RSS</span><span class="tag tag-green">free · always on</span></div>
+            <div style="display:flex;align-items:center;gap:10px;"><span style="flex:1;font-size:13px;">Pexels Stock Video</span><span id="pexels-int-status" class="tag tag-amber">not configured</span></div>
+          </div>
+        </div>
+
+        <!-- PEXELS CONFIG -->
+        <div class="card" style="border-color:rgba(0,102,255,0.25);">
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;">
+            <div style="width:28px;height:28px;background:rgba(0,102,255,0.2);border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;">🎥</div>
+            <div style="flex:1;">
+              <div class="card-label" style="margin:0;font-size:11px;">PEXELS STOCK VIDEO — B-ROLL FOOTAGE</div>
+              <div style="font-size:11px;color:var(--text3);font-family:var(--font-mono);">Free HD stock video for your news thumbnails & b-roll</div>
+            </div>
+            <span id="pexels-status-tag" class="tag tag-amber">not configured</span>
+          </div>
+          <div style="background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:12px;margin-bottom:14px;font-size:12px;color:var(--text2);line-height:1.8;">
+            <div style="font-family:var(--font-mono);font-size:10px;color:#4d9fff;margin-bottom:6px;">HOW TO GET YOUR FREE API KEY</div>
+            <div>1. Go to <span style="color:#4d9fff;font-family:var(--font-mono);">pexels.com/api</span> → Sign up free</div>
+            <div>2. Dashboard → <span style="color:var(--text);">Your API Key</span> → Copy</div>
+            <div>3. Paste below and save — unlimited free HD video access</div>
+          </div>
+          <div class="form-row">
+            <label>Pexels API Key</label>
+            <input type="password" id="pexels-api-key" placeholder="xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" oninput="onPexelsInput()">
+          </div>
+          <div style="display:flex;gap:10px;align-items:center;">
+            <button class="btn btn-primary" style="background:#4d9fff;color:#fff;" onclick="savePexelsConfig()" id="pexels-save-btn" disabled>💾 SAVE KEY</button>
+            <div id="pexels-config-result" style="font-family:var(--font-mono);font-size:12px;color:var(--text3);flex:1;"></div>
+          </div>
+
+          <!-- B-roll search test -->
+          <div id="pexels-test-section" style="display:none;margin-top:14px;">
+            <hr class="divider">
+            <div class="card-label" style="margin-bottom:10px;">🎬 SEARCH B-ROLL FOOTAGE</div>
+            <div style="display:grid;grid-template-columns:1fr auto;gap:10px;margin-bottom:12px;align-items:end;">
+              <div><label>Search Query</label><input type="text" id="pexels-query" placeholder="e.g. breaking news, stock market, city skyline..." value="breaking news"></div>
+              <button class="btn btn-ghost" onclick="searchPexels()" style="white-space:nowrap;">🔍 Search Videos</button>
+            </div>
+            <div id="pexels-results" style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;"></div>
           </div>
         </div>
 
@@ -1231,6 +1269,10 @@
             <div>1. Go to <span style="color:#9b6dff;font-family:var(--font-mono);">elevenlabs.io</span> → Sign up free (10,000 chars/month free)</div>
             <div>2. Click your profile → <span style="color:var(--text);">API Keys</span> → Generate → copy the key</div>
             <div>3. Paste below → click Save → voiceover generates automatically in the pipeline</div>
+            <div style="margin-top:8px;background:rgba(0,229,160,0.07);border:1px solid rgba(0,229,160,0.2);border-radius:4px;padding:8px;color:var(--accent);font-family:var(--font-mono);font-size:10px;">
+              ✓ Using <strong>eleven_turbo_v2_5</strong> model — free tier compatible, fast, high quality.<br>
+              ✗ eleven_monolingual_v1 and eleven_multilingual_v1 are deprecated and removed from free tier.
+            </div>
           </div>
 
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px;">
@@ -1251,6 +1293,16 @@
                 <option value="onwK4e9ZLuTAKqWW03F9">Daniel — British newsreader male</option>
               </select>
             </div>
+          </div>
+
+          <div style="margin-bottom:14px;">
+            <label>TTS Model</label>
+            <select id="el-model-id">
+              <option value="eleven_turbo_v2_5" selected>eleven_turbo_v2_5 — FREE tier · fastest · recommended ✓</option>
+              <option value="eleven_turbo_v2">eleven_turbo_v2 — FREE tier · fast</option>
+              <option value="eleven_multilingual_v2">eleven_multilingual_v2 — PAID · best quality</option>
+              <option value="eleven_flash_v2_5">eleven_flash_v2_5 — FREE tier · ultra fast</option>
+            </select>
           </div>
 
           <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:14px;">
@@ -1450,6 +1502,7 @@ Output: One clear DALL·E 3 prompt in 2-3 sentences. Then one line: "Text overla
 
   const elKey = localStorage.getItem('elApiKey');
   const elVoiceId = localStorage.getItem('elVoiceId') || 'pNInz6obpgDQGcFmaJgB';
+  const elModelId = localStorage.getItem('elModelId') || 'eleven_turbo_v2_5';
   const elStability = parseFloat(localStorage.getItem('elStability')||'0.5');
   const elSimilarity = parseFloat(localStorage.getItem('elSimilarity')||'0.75');
   const elStyleVal = parseFloat(localStorage.getItem('elStyle')||'0.0');
@@ -2244,6 +2297,7 @@ async function saveELConfig(){
   const stability=document.getElementById('el-stability').value;
   const similarity=document.getElementById('el-similarity').value;
   const style=document.getElementById('el-style').value;
+  const modelId=document.getElementById('el-model-id')?.value || 'eleven_turbo_v2_5';
 
   if(!key){ document.getElementById('el-config-result').innerHTML='<span style="color:var(--accent3);">⚠ Enter your API key first</span>'; return; }
 
@@ -2252,14 +2306,13 @@ async function saveELConfig(){
   document.getElementById('el-config-result').innerHTML='<span style="color:var(--text3);">Verifying API key...</span>';
 
   try {
-    // Verify via handler (no CORS issues)
     const verifyRes=await fetch('/api/handler',{
       method:'POST',
       headers:{'Content-Type':'application/json'},
       body:JSON.stringify({ action:'el_verify', api_key:key })
     });
     const verifyRaw = await verifyRes.text();
-    if(!verifyRaw || verifyRaw.trim()==='') throw new Error('Empty server response. Check Vercel function logs and ensure GROQ_API_KEY is set.');
+    if(!verifyRaw || verifyRaw.trim()==='') throw new Error('Empty server response. Check Vercel logs and ensure GROQ_API_KEY is set.');
     const verifyData = JSON.parse(verifyRaw);
 
     if(!verifyData.valid){
@@ -2267,16 +2320,16 @@ async function saveELConfig(){
       btn.disabled=false; btn.innerHTML='💾 SAVE & TEST VOICE'; return;
     }
 
-    // Save to localStorage
+    // Save all settings including model
     localStorage.setItem('elApiKey',key);
     localStorage.setItem('elVoiceId',voiceId);
     localStorage.setItem('elStability',stability);
     localStorage.setItem('elSimilarity',similarity);
     localStorage.setItem('elStyle',style);
+    localStorage.setItem('elModelId',modelId);
 
-    document.getElementById('el-config-result').innerHTML='<span style="color:var(--text3);">Generating sample audio...</span>';
+    document.getElementById('el-config-result').innerHTML='<span style="color:var(--text3);">Generating sample audio with '+modelId+'...</span>';
 
-    // Generate test audio via Netlify function
     const ttsRes=await fetch('/api/handler',{
       method:'POST',
       headers:{'Content-Type':'application/json'},
@@ -2284,26 +2337,25 @@ async function saveELConfig(){
         action:'el_tts',
         api_key:key,
         voice_id:voiceId,
+        model_id:modelId,
         text:'DailyFeedin. Breaking news, every day. Stay informed.',
         voice_settings:{stability:parseFloat(stability),similarity_boost:parseFloat(similarity),style:parseFloat(style),use_speaker_boost:true}
       })
     });
-    const ttsData=await ttsRes.json();
+    const ttsRaw = await ttsRes.text();
+    const ttsData = ttsRaw ? JSON.parse(ttsRaw) : {};
 
     if(ttsData.audio_base64){
-      // Convert base64 to blob and play
       const binary=atob(ttsData.audio_base64);
       const bytes=new Uint8Array(binary.length);
       for(let i=0;i<binary.length;i++) bytes[i]=binary.charCodeAt(i);
       const blob=new Blob([bytes],{type:'audio/mpeg'});
-      const url=URL.createObjectURL(blob);
-      new Audio(url).play();
-
+      new Audio(URL.createObjectURL(blob)).play();
       ['el-status-tag','el-int-status'].forEach(id=>{
         const el=document.getElementById(id);
         if(el){el.textContent='connected ✓';el.className='tag tag-green';}
       });
-      document.getElementById('el-config-result').innerHTML=`<span style="color:var(--accent);">✓ Connected! Playing sample — ${ttsData.size_kb}KB generated. Pipeline will auto-produce voiceover from now on.</span>`;
+      document.getElementById('el-config-result').innerHTML=`<span style="color:var(--accent);">✓ Connected! ${ttsData.size_kb}KB audio generated with ${ttsData.model_used||modelId}. Playing sample now.</span>`;
     } else {
       document.getElementById('el-config-result').innerHTML=`<span style="color:var(--accent3);">✗ TTS error: ${ttsData.error||'Unknown error'}</span>`;
     }
@@ -2366,23 +2418,100 @@ async function regenAudio(){
   }
 }
 
-// Restore ElevenLabs config on load
+// ============ PEXELS CONFIG ============
+function onPexelsInput(){
+  const key=document.getElementById('pexels-api-key').value.trim();
+  const btn=document.getElementById('pexels-save-btn');
+  if(btn) btn.disabled=!key;
+}
+
+async function savePexelsConfig(){
+  const key=document.getElementById('pexels-api-key').value.trim();
+  if(!key) return;
+  const btn=document.getElementById('pexels-save-btn');
+  btn.disabled=true; btn.innerHTML='<span class="spinner"></span> Verifying...';
+  document.getElementById('pexels-config-result').innerHTML='<span style="color:var(--text3);">Testing key...</span>';
+  try {
+    const r=await fetch('https://api.pexels.com/videos/search?query=news&per_page=1',{
+      headers:{Authorization:key}
+    });
+    if(!r.ok) throw new Error('Invalid key — got '+r.status+'. Get yours free at pexels.com/api');
+    const data=await r.json();
+    localStorage.setItem('pexelsApiKey',key);
+    ['pexels-status-tag','pexels-int-status'].forEach(id=>{
+      const el=document.getElementById(id);
+      if(el){el.textContent='connected ✓';el.className='tag tag-green';}
+    });
+    document.getElementById('pexels-config-result').innerHTML=`<span style="color:var(--accent);">✓ Connected! ${(data.total_results||0).toLocaleString()} videos available. Try a B-roll search below.</span>`;
+    const testSection=document.getElementById('pexels-test-section');
+    if(testSection) testSection.style.display='block';
+  } catch(e){
+    document.getElementById('pexels-config-result').innerHTML=`<span style="color:var(--accent3);">✗ ${e.message}</span>`;
+  }
+  btn.disabled=false; btn.innerHTML='💾 SAVE KEY';
+}
+
+async function searchPexels(){
+  const key=localStorage.getItem('pexelsApiKey');
+  if(!key){ alert('Save your Pexels API key first.'); return; }
+  const query=(document.getElementById('pexels-query')?.value||'breaking news').trim();
+  const resultsEl=document.getElementById('pexels-results');
+  resultsEl.innerHTML='<div style="grid-column:1/-1;font-family:var(--font-mono);font-size:12px;color:var(--text3);"><span class="spinner"></span> Searching...</div>';
+  try {
+    const r=await fetch(`https://api.pexels.com/videos/search?query=${encodeURIComponent(query)}&per_page=6&orientation=landscape`,{
+      headers:{Authorization:key}
+    });
+    if(!r.ok) throw new Error('Pexels error '+r.status);
+    const data=await r.json();
+    const vids=data.videos||[];
+    if(vids.length===0){resultsEl.innerHTML='<div style="grid-column:1/-1;font-family:var(--font-mono);font-size:12px;color:var(--text3);">No results for "'+query+'"</div>';return;}
+    resultsEl.innerHTML=vids.map(v=>{
+      const dlUrl=v.video_files?.find(f=>f.quality==='hd'||f.quality==='sd')?.link||v.video_files?.[0]?.link||'';
+      return `<div style="border-radius:6px;overflow:hidden;background:var(--bg3);border:1px solid var(--border);">
+        <img src="${v.image}" alt="" style="width:100%;height:100px;object-fit:cover;display:block;">
+        <div style="padding:8px;">
+          <div style="font-family:var(--font-mono);font-size:10px;color:var(--text3);margin-bottom:6px;">${v.duration}s · ${v.width}×${v.height}</div>
+          <div style="display:flex;gap:5px;">
+            <a href="${dlUrl}" download class="btn btn-primary" style="font-size:10px;padding:4px 8px;flex:1;text-decoration:none;text-align:center;">⬇ Download</a>
+            <a href="${v.url}" target="_blank" class="btn btn-ghost" style="font-size:10px;padding:4px 8px;">▶</a>
+          </div>
+        </div>
+      </div>`;
+    }).join('');
+  } catch(e){
+    resultsEl.innerHTML=`<div style="grid-column:1/-1;font-family:var(--font-mono);font-size:12px;color:var(--accent3);">✗ ${e.message}</div>`;
+  }
+}
+
+
 function restoreELConfig(){
   const key=localStorage.getItem('elApiKey');
   const voiceId=localStorage.getItem('elVoiceId');
   const stability=localStorage.getItem('elStability');
   const similarity=localStorage.getItem('elSimilarity');
   const style=localStorage.getItem('elStyle');
+  const modelId=localStorage.getItem('elModelId');
 
   if(key){
     const el=document.getElementById('el-api-key');
     if(el) el.value=key;
     if(voiceId){ const v=document.getElementById('el-voice-id'); if(v) v.value=voiceId; }
+    if(modelId){ const m=document.getElementById('el-model-id'); if(m) m.value=modelId; }
     if(stability){ const s=document.getElementById('el-stability'); if(s){ s.value=stability; document.getElementById('el-stability-val').textContent=parseFloat(stability).toFixed(2); }}
     if(similarity){ const s=document.getElementById('el-similarity'); if(s){ s.value=similarity; document.getElementById('el-similarity-val').textContent=parseFloat(similarity).toFixed(2); }}
     if(style){ const s=document.getElementById('el-style'); if(s){ s.value=style; document.getElementById('el-style-val').textContent=parseFloat(style).toFixed(2); }}
-
     ['el-status-tag','el-int-status'].forEach(id=>{
+      const el=document.getElementById(id);
+      if(el){el.textContent='connected ✓';el.className='tag tag-green';}
+    });
+  }
+
+  // Restore Pexels key
+  const pexelsKey=localStorage.getItem('pexelsApiKey');
+  if(pexelsKey){
+    const el=document.getElementById('pexels-api-key');
+    if(el) el.value=pexelsKey;
+    ['pexels-status-tag','pexels-int-status'].forEach(id=>{
       const el=document.getElementById(id);
       if(el){el.textContent='connected ✓';el.className='tag tag-green';}
     });
@@ -2701,6 +2830,20 @@ window.addEventListener('load', () => {
   setInterval(updateNextSlotDisplay, 30000);
   restoreYTConnection();
   restoreELConfig();
+  // Restore Pexels key
+  const pexelsKey=localStorage.getItem('pexelsApiKey');
+  if(pexelsKey){
+    const el=document.getElementById('pexels-api-key');
+    if(el) el.value=pexelsKey;
+    ['pexels-status-tag','pexels-int-status'].forEach(id=>{
+      const e=document.getElementById(id);
+      if(e){e.textContent='connected ✓';e.className='tag tag-green';}
+    });
+    const testSection=document.getElementById('pexels-test-section');
+    if(testSection) testSection.style.display='block';
+    const saveBtn=document.getElementById('pexels-save-btn');
+    if(saveBtn) saveBtn.disabled=false;
+  }
 });
 
 </script>
