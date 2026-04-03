@@ -2694,6 +2694,8 @@ function useViralAsTopic(title) {
 }
 
 
+// Init on load
+window.addEventListener('load', () => {
   updateNextSlotDisplay();
   refreshQueue();
   setInterval(updateNextSlotDisplay, 30000);
