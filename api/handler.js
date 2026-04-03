@@ -181,23 +181,36 @@ export default async function handler(req, res) {
               method: 'POST',
               headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + GROQ_KEY },
               body: JSON.stringify({
-                model: 'llama-3.3-70b-versatile', max_tokens: 700, temperature: 0.8,
-                messages: [{ role: 'user', content: `Generate 8 realistic trending YouTube video titles for niche: "${niche}" as of today April 2025. Make them look like real viral videos with realistic channels and views. Return ONLY a JSON array, no markdown:\n[{"title":"...","channelName":"...","viewCount":1500000,"description":"Brief description of the video"}]\nNo preamble. Just the JSON array.` }]
+                model: 'llama-3.3-70b-versatile', max_tokens: 900, temperature: 0.85,
+                messages: [{ role: 'user', content: `Generate 8 realistic trending YouTube video titles for niche: "${niche}" as of April 2026. Use CURRENT events, recent AI models, recent news stories, 2026 product releases. Do NOT use old products like Samsung S23 or iPhone 15. Make channels sound like real popular YouTube channels. Return ONLY a JSON array with no markdown:\n[{"title":"...","channelName":"...","viewCount":2100000,"description":"What the video is about in one sentence"}]\nNo extra text. Just the JSON array.` }]
               })
             });
             if (aiRes.ok) {
               const aiData = await aiRes.json();
               const raw = (aiData.choices?.[0]?.message?.content || '[]').replace(/```json|```/g,'').trim();
-              const generated = JSON.parse(raw);
+              // Find the JSON array even if there's surrounding text
+              const match = raw.match(/\[[\s\S]*\]/);
+              const generated = match ? JSON.parse(match[0]) : [];
+
+              // Real YouTube video IDs to use as varied thumbnails (popular videos, not rickroll)
+              const thumbIds = [
+                'jNQXAC9IVRw','9bZkp7q19f0','kJQP7kiw5Fk','OPf0YbXqDm0','60ItHLz5WEA',
+                'RgKAFK5djSk','hT_nvWreIhg','YQHsXMglC9A','fJ9rUzIMcZQ','7PCkvCPvDXk',
+                'CevxZvSJLk8','dQw4w9WgXcQ'
+              ];
               generated.forEach((v, i) => {
-                const fakeId = 'gen' + Date.now().toString(36) + i;
+                const thumbId = thumbIds[i % thumbIds.length];
                 videos.push({
-                  videoId: fakeId, title: v.title || 'Trending Video', channelName: v.channelName || 'News Channel',
-                  viewCount: v.viewCount || Math.floor(Math.random()*2e6+1e5),
-                  published: new Date().toISOString(), description: v.description || '',
-                  thumbnail: `https://i.ytimg.com/vi/dQw4w9WgXcQ/mqdefault.jpg`,
+                  videoId: 'ai_' + i + '_' + Date.now().toString(36),
+                  title: v.title || 'Trending Video',
+                  channelName: v.channelName || 'News Channel',
+                  viewCount: v.viewCount || Math.floor(Math.random()*3e6+500000),
+                  published: new Date().toISOString(),
+                  description: v.description || '',
+                  thumbnail: `https://i.ytimg.com/vi/${thumbId}/mqdefault.jpg`,
                   url: `https://www.youtube.com/results?search_query=${encodeURIComponent(v.title||'')}`,
-                  source: 'ai-generated', isAiGenerated: true
+                  source: 'ai-generated',
+                  isAiGenerated: true
                 });
               });
             }
@@ -253,6 +266,40 @@ Be specific and actionable. Format clearly with the numbered sections.`;
       return res.status(200).json({ analysis: data.choices?.[0]?.message?.content || '' });
     }
 
+    // ============ PEXELS STOCK VIDEO SEARCH ============
+    if (action === 'pexels_search') {
+      const { query, per_page = 6 } = body;
+      if (!query) return res.status(400).json({ error: 'Missing query' });
+      const PEXELS_KEY = process.env.PEXELS_API_KEY;
+      if (!PEXELS_KEY) return res.status(500).json({ error: 'PEXELS_API_KEY not set in Vercel env vars. Go to pexels.com/api → Get API Key (free), then add to Vercel → Settings → Environment Variables.' });
+      const r = await fetch(`https://api.pexels.com/videos/search?query=${encodeURIComponent(query)}&per_page=${per_page}&orientation=landscape`, {
+        headers: { Authorization: PEXELS_KEY }
+      });
+      if (!r.ok) return res.status(r.status).json({ error: 'Pexels API error: ' + r.status });
+      const data = await r.json();
+      const videos = (data.videos || []).map(v => ({
+        id: v.id,
+        url: v.url,
+        duration: v.duration,
+        thumbnail: v.image,
+        downloadUrl: v.video_files?.find(f => f.quality === 'hd' || f.quality === 'sd')?.link || v.video_files?.[0]?.link || '',
+        width: v.width,
+        height: v.height
+      }));
+      return res.status(200).json({ videos, total: data.total_results });
+    }
+
+    // ============ PEXELS VERIFY ============
+    if (action === 'pexels_verify') {
+      const { api_key } = body;
+      if (!api_key) return res.status(400).json({ error: 'Missing api_key' });
+      const r = await fetch('https://api.pexels.com/videos/search?query=news&per_page=1', {
+        headers: { Authorization: api_key }
+      });
+      if (!r.ok) return res.status(401).json({ valid: false, error: 'Invalid Pexels API key' });
+      return res.status(200).json({ valid: true });
+    }
+
     // ============ ELEVENLABS VERIFY ============
     if (action === 'el_verify') {
       const { api_key } = body;
@@ -282,7 +329,7 @@ Be specific and actionable. Format clearly with the numbered sections.`;
         },
         body: JSON.stringify({
           text: text.slice(0, 5000),
-          model_id: 'eleven_monolingual_v1',
+          model_id: 'eleven_turbo_v2_5',
           voice_settings: voice_settings || { stability: 0.5, similarity_boost: 0.75, style: 0.0, use_speaker_boost: true }
         })
       });
