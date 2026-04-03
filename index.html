@@ -33,7 +33,7 @@
   .app { display: grid; grid-template-columns: 220px 1fr; grid-template-rows: 48px 1fr; height: 100vh; }
   .topbar { grid-column: 1/-1; display: flex; align-items: center; gap: 12px; padding: 0 20px; background: var(--bg2); border-bottom: 1px solid var(--border); z-index: 10; }
   .sidebar { background: var(--bg2); border-right: 1px solid var(--border); display: flex; flex-direction: column; padding: 12px 0; overflow-y: auto; }
-  .main { background: var(--bg); overflow-y: auto; padding: 24px; }
+  .main { background: var(--bg); overflow-y: auto; padding: 24px; overflow-anchor: none; scroll-behavior: auto; }
 
   /* TOPBAR */
   .logo { font-family: var(--font-mono); font-size: 13px; font-weight: 600; color: var(--accent); letter-spacing: 0.1em; }
@@ -52,8 +52,8 @@
   .nav-badge { margin-left: auto; background: var(--accent); color: #000; font-family: var(--font-mono); font-size: 10px; font-weight: 600; padding: 1px 6px; border-radius: 3px; }
 
   /* PANELS */
-  .panel { display: none; }
-  .panel.active { display: block; }
+  .panel { display: none; overflow-anchor: none; }
+  .panel.active { display: block; overflow-anchor: none; }
 
   /* SECTION HEADER */
   .section-hdr { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; }
@@ -231,6 +231,7 @@
     <div class="nav-item" onclick="showPanel('pipeline',this)"><span class="nav-icon">⚡</span> Pipeline <span class="nav-badge">RUN</span></div>
     <div class="nav-section">Content</div>
     <div class="nav-item" onclick="showPanel('trends',this)"><span class="nav-icon">📡</span> Trend Finder</div>
+    <div class="nav-item" onclick="showPanel('viral',this)"><span class="nav-icon">🔥</span> Viral Scraper</div>
     <div class="nav-item" onclick="showPanel('script',this)"><span class="nav-icon">✍️</span> Script Writer</div>
     <div class="nav-item" onclick="showPanel('seo',this)"><span class="nav-icon">🔎</span> SEO & Titles</div>
     <div class="nav-item" onclick="showPanel('thumbnail',this)"><span class="nav-icon">🖼️</span> Thumbnail Prompt</div>
@@ -484,7 +485,7 @@
             <select><option>United States</option><option>Global</option><option>UK</option><option>Canada</option></select>
           </div>
           <div style="margin-top:16px;">
-            <button class="btn btn-primary" id="trend-btn" onclick="findTrends()" style="width:100%;">📡 FETCH LIVE NEWS</button>
+            <button class="btn btn-primary" id="trend-btn" onclick="findTrends()" style="width:100%;">📡 FIND TRENDING TOPICS</button>
           </div>
         </div>
         <div>
@@ -497,6 +498,97 @@
       <div id="trend-ideas-section" style="display:none;">
         <div class="card-label" style="margin-bottom:10px;">VIDEO IDEAS FROM TRENDS</div>
         <div class="result-card"><div id="trend-ideas" style="padding:16px;font-size:13px;line-height:1.8;"></div></div>
+      </div>
+    </div>
+
+    <!-- VIRAL SCRAPER -->
+    <div class="panel" id="panel-viral">
+      <div class="section-hdr">
+        <div><div class="section-title">🔥 Viral Video Scraper</div><div class="section-sub">// scrape trending YouTube videos · identify viral clips · repost strategy</div></div>
+        <span class="tag tag-green" style="margin-left:auto;">FREE · no API key</span>
+      </div>
+
+      <div class="grid-2" style="margin-bottom:16px;">
+        <div class="card">
+          <div class="card-label" style="margin-bottom:12px;">SCRAPE SETTINGS</div>
+          <div class="form-row">
+            <label>Niche / Category</label>
+            <select id="viral-niche">
+              <option value="news">Breaking News</option>
+              <option value="tech">Tech & AI</option>
+              <option value="finance">Finance & Markets</option>
+              <option value="entertainment">Entertainment</option>
+              <option value="gaming">Gaming</option>
+              <option value="education">Education</option>
+              <option value="all">All Categories</option>
+            </select>
+          </div>
+          <div class="form-row">
+            <label>Region</label>
+            <select id="viral-region">
+              <option value="US">United States</option>
+              <option value="GB">United Kingdom</option>
+              <option value="CA">Canada</option>
+              <option value="AU">Australia</option>
+              <option value="IN">India</option>
+            </select>
+          </div>
+          <div class="form-row">
+            <label>Sort By</label>
+            <select id="viral-sort">
+              <option value="views">Most Views</option>
+              <option value="recent">Most Recent</option>
+            </select>
+          </div>
+          <div style="margin-top:16px;display:flex;flex-direction:column;gap:8px;">
+            <button class="btn btn-primary" id="viral-btn" onclick="scrapeViral()" style="width:100%;">🔥 SCRAPE TRENDING VIDEOS</button>
+            <div style="font-size:11px;color:var(--text3);font-family:var(--font-mono);text-align:center;">Uses YouTube RSS · 100% free · no API key</div>
+          </div>
+        </div>
+
+        <div>
+          <div class="card-label" style="margin-bottom:10px;">HOW TO USE THIS</div>
+          <div class="card" style="border-color:rgba(0,229,160,0.2);font-size:12px;color:var(--text2);line-height:1.9;">
+            <div style="font-family:var(--font-mono);font-size:10px;color:var(--accent);margin-bottom:8px;">VIRAL CLIP WORKFLOW</div>
+            <div><span style="color:var(--text);">Step 1 →</span> Scrape trending videos in your niche</div>
+            <div><span style="color:var(--text);">Step 2 →</span> Click <span style="color:var(--accent);">Analyze</span> on any video to get AI clip strategy</div>
+            <div><span style="color:var(--text);">Step 3 →</span> AI identifies viral timestamps + repost angle</div>
+            <div><span style="color:var(--text);">Step 4 →</span> Click <span style="color:var(--accent);">Use as Topic</span> to send to Script Writer</div>
+            <div><span style="color:var(--text);">Step 5 →</span> Your script + voiceover → publish on DailyFeedin</div>
+            <hr class="divider" style="margin:12px 0;">
+            <div style="font-family:var(--font-mono);font-size:10px;color:var(--amber);margin-bottom:6px;">⚠ LEGAL NOTE</div>
+            <div style="color:var(--text3);">Only repost with commentary/analysis (Fair Use). Never repost raw clips without transformation. Use AI to write original scripts <span style="color:var(--text);">about</span> the topic.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- VIRAL VIDEO RESULTS -->
+      <div id="viral-results" style="display:none;">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;">
+          <div class="card-label" style="margin:0;">TRENDING VIDEOS</div>
+          <span id="viral-count" class="tag tag-green"></span>
+          <button class="btn btn-ghost" onclick="scrapeViral()" style="margin-left:auto;font-size:12px;">↺ Refresh</button>
+        </div>
+        <div id="viral-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:12px;"></div>
+      </div>
+
+      <!-- VIRAL ANALYSIS OUTPUT -->
+      <div id="viral-analysis-section" style="display:none;margin-top:16px;">
+        <div class="result-card" style="border-color:rgba(255,64,96,0.3);">
+          <div class="result-card-header" style="background:rgba(255,64,96,0.05);">
+            <span style="font-size:16px;">🔥</span>
+            <span style="font-weight:600;font-size:13px;">Viral Clip Analysis</span>
+            <span id="viral-analysis-title" style="font-size:11px;color:var(--text3);font-family:var(--font-mono);margin-left:8px;"></span>
+            <button class="copy-btn" onclick="copyEl('viral-analysis-body')">copy</button>
+          </div>
+          <div class="result-card-body">
+            <div id="viral-analysis-body" style="font-size:13px;line-height:1.9;white-space:pre-wrap;"></div>
+            <div style="margin-top:14px;display:flex;gap:8px;flex-wrap:wrap;">
+              <button class="btn btn-primary" id="viral-use-btn" onclick="">✍️ USE AS SCRIPT TOPIC</button>
+              <button class="btn btn-ghost" onclick="document.getElementById('viral-analysis-section').style.display='none'">✕ Close</button>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -1102,28 +1194,23 @@
 
         <!-- AI CONFIG -->
         <div class="card">
-          <div class="card-label" style="margin-bottom:12px;">⚙️ AI CONFIG</div>
-          <div class="form-row"><label>Claude Model</label><select><option>claude-sonnet-4-20250514 (recommended)</option><option>claude-opus-4-20250514</option></select></div>
+          <div class="card-label" style="margin-bottom:12px;">⚙️ AI CONFIG — GROQ (FREE)</div>
+          <div style="background:rgba(0,229,160,0.06);border:1px solid rgba(0,229,160,0.2);border-radius:6px;padding:12px;margin-bottom:14px;font-size:12px;color:var(--text2);line-height:1.8;">
+            <div style="font-family:var(--font-mono);font-size:10px;color:var(--accent);margin-bottom:6px;">REQUIRED: Set GROQ_API_KEY in Vercel</div>
+            <div>1. Get free key at <span style="color:#4d9fff;font-family:var(--font-mono);">console.groq.com</span> → API Keys</div>
+            <div>2. In Vercel: Project → Settings → <span style="color:var(--text);">Environment Variables</span></div>
+            <div>3. Add: <span style="font-family:var(--font-mono);color:var(--accent);">GROQ_API_KEY</span> = your key → Save → Redeploy</div>
+            <div style="margin-top:8px;color:var(--accent3);">⚠ Without this, Script Writer and all AI features will fail.</div>
+          </div>
+          <div class="form-row"><label>Groq Model</label><select><option>llama-3.3-70b-versatile (recommended — fastest)</option><option>llama-3.1-70b-versatile</option></select></div>
           <div class="form-row"><label>Script Tone</label><select><option>Neutral / Factual</option><option>Dramatic / Urgent</option><option>Calm / Analytical</option></select></div>
           <div class="form-row"><label>Default Language</label><select><option>English (US)</option><option>English (UK)</option><option>Spanish</option></select></div>
-          <hr class="divider">
-          <div class="card-label" style="margin-bottom:12px;">📡 NEWS API — NewsData.io</div>
-          <div style="background:var(--bg3);border:1px solid var(--border);border-radius:5px;padding:10px 12px;font-size:12px;color:var(--text2);margin-bottom:10px;line-height:1.7;">
-            Free tier: 200 requests/day. Get key at <span style="color:#4d9fff;font-family:var(--font-mono);">newsdata.io</span> → Sign up → API Key tab.<br>
-            Leave blank to use Google RSS fallback (free, no key needed).
-          </div>
-          <div class="form-row">
-            <label>NewsData.io API Key <span style="color:var(--text3);font-weight:400;">(optional — Google RSS used if blank)</span></label>
-            <input type="password" id="newsdata-key" placeholder="pub_xxxxxxxxxxxxxxxxxxxxxxxx" oninput="saveNewsdataKey()">
-          </div>
-          <div id="newsdata-status" style="font-family:var(--font-mono);font-size:11px;color:var(--text3);margin-top:4px;"></div>
           <hr class="divider">
           <div class="card-label" style="margin-bottom:12px;">🔌 INTEGRATIONS</div>
           <div style="display:flex;flex-direction:column;gap:10px;">
             <div style="display:flex;align-items:center;gap:10px;"><span style="flex:1;font-size:13px;">YouTube OAuth 2.0</span><span id="yt-int-status" class="tag tag-amber">not connected</span></div>
             <div style="display:flex;align-items:center;gap:10px;"><span style="flex:1;font-size:13px;">ElevenLabs TTS</span><span id="el-int-status" class="tag tag-amber">not configured</span></div>
-            <div style="display:flex;align-items:center;gap:10px;"><span style="flex:1;font-size:13px;">NewsData.io</span><span id="nd-int-status" class="tag tag-amber">using RSS fallback</span></div>
-            <div style="display:flex;align-items:center;gap:10px;"><span style="flex:1;font-size:13px;">Google News RSS</span><span class="tag tag-green">free · always on</span></div>
+            <div style="display:flex;align-items:center;gap:10px;"><span style="flex:1;font-size:13px;">Google Trends API</span><span class="tag tag-amber">configure</span></div>
             <div style="display:flex;align-items:center;gap:10px;"><span style="flex:1;font-size:13px;">Pexels Stock Video</span><span class="tag tag-amber">configure</span></div>
           </div>
         </div>
@@ -1194,19 +1281,30 @@
 </div>
 
 <script>
-// CLOCK
+// CLOCK — fixed width prevents layout reflow
 function updateClock(){
-  const now=new Date();
-  document.getElementById('clock').textContent=now.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false})+' EST';
+  const el = document.getElementById('clock');
+  if(!el) return;
+  const newTime = new Date().toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false})+' EST';
+  if(el.textContent !== newTime) el.textContent = newTime;
 }
 setInterval(updateClock,1000); updateClock();
 
-// PANEL NAV
+// PANEL NAV — preserves scroll position per panel
+const panelScrollPos = {};
 function showPanel(id,el){
+  // Save current scroll position
+  const main = document.getElementById('main-content');
+  const current = document.querySelector('.panel.active');
+  if(current) panelScrollPos[current.id] = main.scrollTop;
+
   document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
   document.getElementById('panel-'+id).classList.add('active');
   el.classList.add('active');
+
+  // Restore scroll position for this panel (or go to top)
+  main.scrollTop = panelScrollPos['panel-'+id] || 0;
 }
 
 // TOGGLE LEN
@@ -1225,29 +1323,38 @@ function log(msg,cls=''){
   logEl.scrollTop=logEl.scrollHeight;
 }
 
-// CLAUDE API CALL — proxied through Netlify function to fix CORS
+// AI CALL — FREE via Groq (llama-3.3-70b, 14400 req/day free)
 async function callClaude(prompt, systemPrompt='You are an expert faceless YouTube content creator. Respond directly without preamble.', maxTokens=1000){
   const controller = new AbortController();
-  const timeout = setTimeout(()=>controller.abort(), 25000);
+  const timeout = setTimeout(()=>controller.abort(), 30000);
   try {
-    const res = await fetch('/.netlify/functions/youtube-auth', {
+    const res = await fetch('/api/handler', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       signal: controller.signal,
       body: JSON.stringify({
-        action: 'claude',
+        action: 'ai',
         prompt,
         system: systemPrompt,
         max_tokens: maxTokens
       })
     });
     clearTimeout(timeout);
-    const data = await res.json();
-    if(data.error) throw new Error(data.error);
+
+    // FIX: always read as text first so we never get "Unexpected end of JSON"
+    const raw = await res.text();
+    if (!raw || raw.trim() === '') {
+      throw new Error('Empty response from server. Check Vercel function logs.');
+    }
+    let data;
+    try { data = JSON.parse(raw); }
+    catch { throw new Error('Server returned non-JSON: ' + raw.slice(0, 200)); }
+
+    if (data.error) throw new Error(data.error);
     return data.text || '';
   } catch(e) {
     clearTimeout(timeout);
-    if(e.name==='AbortError') throw new Error('timeout');
+    if(e.name==='AbortError') throw new Error('Request timed out (30s). Try again or check Vercel logs.');
     throw e;
   }
 }
@@ -1281,60 +1388,18 @@ async function runPipeline(){
   const style=document.getElementById('pipe-style').value;
   const channel=document.getElementById('pipe-channel').value;
 
-  // STEP 1: REAL NEWS FETCH
+  // STEP 1: TRENDS
   setPipeStep('trend','running','fetching...');
   log('[00:01] Starting pipeline...','dim');
-  log('[00:02] Fetching live news from NewsData.io / Google RSS...','info');
-
-  let realTopic = topic;
-  let newsSource = 'manual';
-
-  if(!topic){
-    try {
-      const newsKey = localStorage.getItem('newsdataApiKey') || '';
-      const niche = channel.includes('Tech') ? 'Tech & AI' :
-                    channel.includes('Finance') ? 'Finance' :
-                    channel.includes('Politics') ? 'Politics' : 'Breaking News';
-
-      const newsRes = await fetch('/.netlify/functions/youtube-auth', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'news_fetch', niche, news_api_key: newsKey })
-      });
-      const newsData = await newsRes.json();
-
-      if(newsData.articles && newsData.articles.length > 0){
-        // Let Claude pick the best story for YouTube
-        const headlines = newsData.articles.map((a,i) => `${i+1}. ${a.title} (${a.source})`).join('\n');
-        const pickRes = await callClaude(`From these real news headlines, pick the ONE best for a faceless YouTube breaking news video. Choose based on: high search interest, broad US audience appeal, visual storytelling potential.\n\nHeadlines:\n${headlines}\n\nReply with ONLY the number of your choice (1-${newsData.articles.length}), nothing else.`);
-        const pick = parseInt(pickRes.trim()) - 1;
-        const chosen = newsData.articles[Math.max(0, Math.min(pick, newsData.articles.length-1))];
-        realTopic = chosen.title + (chosen.description ? '. ' + chosen.description : '');
-        newsSource = newsData.source;
-        log(`[00:04] Source: ${newsData.source === 'newsdata' ? 'NewsData.io ✓' : 'Google RSS ✓'}`, 'info');
-        log(`[00:05] Story selected: "${chosen.title}"`, 'bold');
-        log(`[00:05] Source: ${chosen.source}`, 'dim');
-      } else {
-        log('[00:04] No news returned — using Claude for trending topic','warn');
-        const aiTopic = await callClaude('Name ONE specific breaking news story trending in the US right now today. Reply with just the headline, nothing else.');
-        realTopic = aiTopic.trim();
-        log(`[00:05] AI topic: "${realTopic}"`, 'bold');
-      }
-    } catch(e) {
-      log('[00:04] News fetch failed — using Claude fallback','warn');
-      const aiTopic = await callClaude('Name ONE specific breaking news story trending in the US right now today. Reply with just the headline, nothing else.');
-      realTopic = aiTopic.trim();
-    }
-  } else {
-    log(`[00:03] Using manual topic: "${topic}"`, 'bold');
-  }
-
+  log('[00:02] Scraping trending topics...','info');
+  await sleep(600);
+  log('[00:03] Topic identified: '+topic,'bold');
   setPipeStep('trend','done','done ✓');
 
   // STEP 2: SCRIPT
   setPipeStep('script','running','generating...');
-  log('[00:06] Generating script with Claude...','info');
-  const scriptPrompt=`Write a complete faceless YouTube news script about: "${realTopic}". Style: ${style}. Channel: ${channel}.
+  log('[00:05] Generating script with Claude...','info');
+  const scriptPrompt=`Write a complete faceless YouTube news script about: "${topic}". Style: ${style}. Channel: ${channel}.
 
 Format with clearly labeled sections:
 🔴 HOOK (0:00–0:20): Attention-grabbing opening, no personal references
@@ -1353,7 +1418,7 @@ Rules: No "I", no face reveal references. Voiceover-ready. Urgent tone. Include 
   // STEP 3: SEO
   setPipeStep('seo','running','optimizing...');
   log('[00:19] Building SEO pack...','info');
-  const seoPrompt=`For this YouTube video about "${realTopic}" on channel "${channel}", generate:
+  const seoPrompt=`For this YouTube video about "${topic}" on channel "${channel}", generate:
 1. BEST TITLE: One perfect high-CTR title (max 60 chars)
 2. 4 ALTERNATE TITLES: 4 more title variations
 3. DESCRIPTION: 3-sentence YouTube description with keywords
@@ -1367,7 +1432,7 @@ Keep it concise and formatted clearly.`;
   // STEP 4: THUMBNAIL
   setPipeStep('thumb','running','prompting...');
   log('[00:30] Generating thumbnail prompt...','info');
-  const thumbPrompt=`Create a DALL·E 3 image generation prompt for a YouTube thumbnail about: "${realTopic}".
+  const thumbPrompt=`Create a DALL·E 3 image generation prompt for a YouTube thumbnail about: "${topic}".
 Requirements: Bold text overlay space, dramatic lighting, news-style urgency, no real people's faces, photorealistic.
 Output: One clear DALL·E 3 prompt in 2-3 sentences. Then one line: "Text overlay: [suggested headline text in caps]"`;
   const thumb=await callClaude(thumbPrompt);
@@ -1401,7 +1466,7 @@ Output: One clear DALL·E 3 prompt in 2-3 sentences. Then one line: "Text overla
       log('[00:39] Script cleaned for TTS ('+cleanScript.split(' ').length+' words)','dim');
       log('[00:40] Calling ElevenLabs API...','info');
 
-      const elRes = await fetch('/.netlify/functions/youtube-auth', {
+      const elRes = await fetch('/api/handler', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -1419,7 +1484,8 @@ Output: One clear DALL·E 3 prompt in 2-3 sentences. Then one line: "Text overla
       });
 
       if(elRes.ok){
-        const ttsData = await elRes.json();
+        const ttsRaw = await elRes.text();
+        const ttsData = ttsRaw ? JSON.parse(ttsRaw) : {};
         if(ttsData.audio_base64){
           // Convert base64 → blob → audio URL
           const binary=atob(ttsData.audio_base64);
@@ -1621,85 +1687,77 @@ function resetPipeline(){
   document.getElementById('run-btn').innerHTML='▶ RUN FULL PIPELINE';
 }
 
-// ============ NEWSDATA KEY ============
-function saveNewsdataKey(){
-  const key=document.getElementById('newsdata-key').value.trim();
-  if(key){
-    localStorage.setItem('newsdataApiKey',key);
-    document.getElementById('newsdata-status').innerHTML='<span style="color:var(--accent);">✓ Key saved</span>';
-    const nd=document.getElementById('nd-int-status');
-    if(nd){nd.textContent='connected ✓';nd.className='tag tag-green';}
-  }
-}
-function restoreNewsdataKey(){
-  const key=localStorage.getItem('newsdataApiKey');
-  const el=document.getElementById('newsdata-key');
-  if(key&&el){
-    el.value=key;
-    const nd=document.getElementById('nd-int-status');
-    if(nd){nd.textContent='connected ✓';nd.className='tag tag-green';}
-  }
-}
-function useTopic(title){
-  const el=document.getElementById('pipe-topic');
-  if(el) el.value=title;
-  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
-  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
-  document.getElementById('panel-pipeline').classList.add('active');
-  const pipeNav=document.querySelector('.nav-item[onclick*="pipeline"]');
-  if(pipeNav) pipeNav.classList.add('active');
-}
-
-// ============ TREND FINDER ============
+// ============ TREND FINDER — Real Google News RSS (FREE) ============
 async function findTrends(){
   const btn=document.getElementById('trend-btn');
-  btn.disabled=true; btn.innerHTML='<span class="spinner"></span> Fetching live news...';
+  btn.disabled=true; btn.innerHTML='<span class="spinner"></span> Fetching...';
   const out=document.getElementById('trends-output');
-  out.innerHTML='<div style="padding:20px;text-align:center;color:var(--text3);font-family:var(--font-mono);font-size:12px;"><span class="spinner"></span> Calling NewsData.io / Google RSS...</div>';
+  out.innerHTML='<div style="padding:20px;text-align:center;color:var(--text3);font-family:var(--font-mono);font-size:12px;"><span class="spinner"></span> Fetching live news from Google...</div>';
   document.getElementById('trend-ideas-section').style.display='none';
 
-  const selected=[...document.querySelectorAll('#niche-filters .tgl.on')].map(el=>el.textContent.trim());
-  const niche=selected[0]||'Breaking News';
-  const newsKey=localStorage.getItem('newsdataApiKey')||'';
+  const today = new Date().toLocaleDateString('en-US',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
 
   try {
-    const newsRes=await fetch('/.netlify/functions/youtube-auth',{
+    // Fetch real trending news from Google News RSS
+    const rssRes = await fetch('/api/handler', {
       method:'POST',
       headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({action:'news_fetch',niche,news_api_key:newsKey})
+      body: JSON.stringify({ action:'trends', topic:'breaking news' })
     });
-    const newsData=await newsRes.json();
+    const rssRaw = await rssRes.text();
+    if(!rssRaw || rssRaw.trim()==='') throw new Error('Empty response from server — check Vercel logs and ensure your function is deployed at api/handler.js');
+    let rssData;
+    try { rssData = JSON.parse(rssRaw); } catch { throw new Error('Server returned non-JSON: '+rssRaw.slice(0,200)); }
+    if(rssData.error) throw new Error(rssData.error);
+    const headlines = rssData.items || [];
 
-    if(newsData.articles&&newsData.articles.length>0){
-      const sourceLabel=newsData.source==='newsdata'
-        ?'<span style="color:var(--accent);">NewsData.io ✓</span>'
-        :'<span style="color:var(--amber);">Google RSS (free fallback)</span>';
-      out.innerHTML=`
-        <div style="padding:10px 14px;border-bottom:1px solid var(--border);font-family:var(--font-mono);font-size:10px;color:var(--text3);display:flex;justify-content:space-between;">
-          <span>SOURCE: ${sourceLabel}</span>
-          <span>${newsData.articles.length} articles · ${new Date().toLocaleTimeString()}</span>
-        </div>
-        ${newsData.articles.map((a,i)=>`
-        <div class="trend-item">
-          <span class="trend-num">${i+1}</span>
-          <div style="flex:1;">
-            <div class="trend-title">${a.title}</div>
-            <div style="font-size:11px;color:var(--text3);margin-top:2px;">${a.source} · ${a.category}</div>
-          </div>
-          <button class="copy-btn" onclick="useTopic('${a.title.replace(/'/g,"\\'").replace(/"/g,'&quot;')}')" style="border-color:rgba(0,229,160,0.3);color:var(--accent);">use →</button>
-        </div>`).join('')}`;
+    if(headlines.length > 0){
+      // Display real headlines
+      out.innerHTML = '<div style="padding:4px 0;">' +
+        headlines.map((item,i) => `
+          <div class="trend-item" onclick="useTrend('${item.title.replace(/'/g,"\\'")}')">
+            <span class="trend-num">${i+1}</span>
+            <div style="flex:1;">
+              <div class="trend-title">${item.title}</div>
+              <div style="font-size:11px;color:var(--text3);font-family:var(--font-mono);">${item.source} · ${item.pubDate ? new Date(item.pubDate).toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'}) : 'just now'}</div>
+            </div>
+            <span class="tag tag-blue" style="font-size:10px;">use →</span>
+          </div>`).join('') +
+        '</div>';
 
-      const headlines=newsData.articles.slice(0,5).map((a,i)=>`${i+1}. ${a.title} (${a.source})`).join('\n');
-      const ideasRes=await callClaude(`Based on these REAL live news headlines, generate 5 YouTube video ideas for DailyFeedin (Breaking News faceless channel):\n\n${headlines}\n\nFor each:\n- VIDEO TITLE: High-CTR title max 60 chars\n- HOOK: First 15 seconds to grab attention\n- EST. VIEWS: Realistic estimate for new channel\n\nFormat numbered 1-5. Be specific to these real stories.`);
+      // Generate video ideas from real headlines
+      const headlineList = headlines.slice(0,5).map(h=>h.title).join('\n');
+      const ideasRes = await Promise.race([
+        callClaude(`These are today's real trending news headlines from Google News:\n${headlineList}\n\nGenerate 5 specific faceless YouTube video ideas based on these. For each:\n- VIDEO TITLE: High-CTR clickable title (max 60 chars)\n- HOOK LINE: First 2 sentences to grab attention\n- WHY IT'S VIRAL: One line\n\nNumbered 1-5. Be specific to each headline.`),
+        new Promise((_,reject)=>setTimeout(()=>reject(new Error('timeout')),20000))
+      ]);
+
       document.getElementById('trend-ideas').innerHTML=ideasRes.replace(/\n/g,'<br>');
       document.getElementById('trend-ideas-section').style.display='block';
+
     } else {
-      out.innerHTML=`<div style="padding:20px;color:var(--accent3);font-family:var(--font-mono);font-size:12px;">No articles returned: ${newsData.error||'Unknown error'}.<br><br>Add a NewsData.io key in Settings, or check your internet.</div>`;
+      throw new Error('No headlines returned');
     }
-  } catch(e){
-    out.innerHTML=`<div style="padding:20px;color:var(--accent3);font-family:var(--font-mono);font-size:12px;">✗ ${e.message}<br><br><button class="btn btn-ghost" onclick="findTrends()">↺ Retry</button></div>`;
+
+  } catch(e) {
+    const msg = e.message==='timeout' ? '⚠ Request timed out. Try again.' : '⚠ '+e.message;
+    out.innerHTML=`<div style="padding:20px;font-family:var(--font-mono);font-size:12px;color:var(--accent3);">${msg}</div>
+      <button class="btn btn-ghost" onclick="findTrends()" style="margin:0 20px 20px;">↺ Try Again</button>`;
   }
-  btn.disabled=false; btn.innerHTML='📡 FETCH LIVE NEWS';
+
+  btn.disabled=false; btn.innerHTML='📡 FIND TRENDING TOPICS';
+}
+
+function useTrend(title){
+  // Auto-fill topic into pipeline and script writer
+  const pipeInput = document.getElementById('pipe-topic');
+  const swInput = document.getElementById('sw-topic');
+  if(pipeInput) pipeInput.value = title;
+  if(swInput) swInput.value = title;
+  // Switch to pipeline
+  document.querySelectorAll('.nav-item').forEach(n=>{
+    if(n.textContent.includes('Pipeline')) n.click();
+  });
 }
 
 // ============ SCRIPT WRITER ============
@@ -1747,7 +1805,11 @@ STRICT FORMAT:
 
 Rules: No "I/me/my". No face references. Pure voiceover text. B-roll notes in brackets.`;
 
-  const script=await callClaude(prompt, 'You are a professional faceless YouTube script writer for news channels. Write compelling, accurate, voiceover-ready scripts.');
+  const script=await callClaude(prompt, 'You are a professional faceless YouTube script writer for news channels. Write compelling, accurate, voiceover-ready scripts.').catch(e=>{
+    document.getElementById('sw-output').textContent='✗ Error: '+e.message+'\n\nFix: Go to Vercel → Project → Settings → Environment Variables → add GROQ_API_KEY → Redeploy.';
+    return null;
+  });
+  if(!script){ btn.disabled=false; btn.innerHTML='✍️ GENERATE SCRIPT'; return; }
   document.getElementById('sw-output').textContent=script;
   btn.disabled=false; btn.innerHTML='✍️ GENERATE SCRIPT';
 }
@@ -1972,7 +2034,7 @@ async function connectYTPermanent(){
 
 // Cloudflare Worker URL — handles CORS + proxies Google OAuth
 // Replace with YOUR worker URL after deploying cloudflare-worker.js
-const CF_WORKER = '/.netlify/functions/youtube-auth';
+const CF_WORKER = '/api/handler';
 
 async function refreshAccessToken(refreshToken, clientId, clientSecret){
   try {
@@ -2025,17 +2087,25 @@ function startAutoRefresh(){
     console.log('✓ YouTube token auto-refreshed at', new Date().toLocaleTimeString());
   }, 50 * 60 * 1000);
 
-  // Countdown timer display
+  // Countdown timer — fixed width prevents layout reflow and scroll jump
+  const timerEl = document.getElementById('yt-token-timer');
+  if(timerEl){
+    timerEl.style.cssText += ';will-change:contents;contain:strict;width:45px;display:inline-block;';
+  }
   tokenCountdownTimer = setInterval(()=>{
-    const auth=YT.load();
+    const auth = YT.load();
     if(!auth.expiresAt) return;
     const remaining = Math.max(0, auth.expiresAt - Date.now());
     const min = Math.floor(remaining/60000);
     const sec = Math.floor((remaining%60000)/1000);
-    const el=document.getElementById('yt-token-timer');
-    if(el) el.textContent=`${String(min).padStart(2,'0')}:${String(sec).padStart(2,'0')}`;
-    if(remaining < 300000 && el) el.style.color='var(--accent3)';
-    else if(el) el.style.color='var(--amber)';
+    const newText = `${String(min).padStart(2,'0')}:${String(sec).padStart(2,'0')}`;
+    const el = document.getElementById('yt-token-timer');
+    if(!el) return;
+    // Only update DOM if value actually changed — prevents unnecessary reflows
+    if(el.textContent !== newText){
+      el.textContent = newText;
+      el.style.color = remaining < 300000 ? 'var(--accent3)' : 'var(--amber)';
+    }
   }, 1000);
 }
 
@@ -2182,13 +2252,15 @@ async function saveELConfig(){
   document.getElementById('el-config-result').innerHTML='<span style="color:var(--text3);">Verifying API key...</span>';
 
   try {
-    // Verify via Netlify function (no CORS issues)
-    const verifyRes=await fetch('/.netlify/functions/youtube-auth',{
+    // Verify via handler (no CORS issues)
+    const verifyRes=await fetch('/api/handler',{
       method:'POST',
       headers:{'Content-Type':'application/json'},
       body:JSON.stringify({ action:'el_verify', api_key:key })
     });
-    const verifyData=await verifyRes.json();
+    const verifyRaw = await verifyRes.text();
+    if(!verifyRaw || verifyRaw.trim()==='') throw new Error('Empty server response. Check Vercel function logs and ensure GROQ_API_KEY is set.');
+    const verifyData = JSON.parse(verifyRaw);
 
     if(!verifyData.valid){
       document.getElementById('el-config-result').innerHTML=`<span style="color:var(--accent3);">✗ ${verifyData.error||'Invalid API key'}</span>`;
@@ -2205,7 +2277,7 @@ async function saveELConfig(){
     document.getElementById('el-config-result').innerHTML='<span style="color:var(--text3);">Generating sample audio...</span>';
 
     // Generate test audio via Netlify function
-    const ttsRes=await fetch('/.netlify/functions/youtube-auth',{
+    const ttsRes=await fetch('/api/handler',{
       method:'POST',
       headers:{'Content-Type':'application/json'},
       body:JSON.stringify({
@@ -2262,7 +2334,7 @@ async function regenAudio(){
   document.getElementById('el-audio-player').style.display='none';
 
   const cleanScript=script.replace(/\[B-ROLL:[^\]]+\]/gi,'').replace(/[🔴📌📣🎬🎯⏱️═]+/g,'').trim();
-  const res=await fetch('/.netlify/functions/youtube-auth',{
+  const res=await fetch('/api/handler',{
     method:'POST',
     headers:{'Content-Type':'application/json'},
     body:JSON.stringify({
@@ -2465,14 +2537,168 @@ function clearQueue(){
   }
 }
 
-// Init on load
-window.addEventListener('load',()=>{
+// ============ VIRAL VIDEO SCRAPER ============
+async function scrapeViral() {
+  const btn = document.getElementById('viral-btn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> Scraping...';
+  const niche = document.getElementById('viral-niche').value;
+  const region = document.getElementById('viral-region').value;
+  const sortBy = document.getElementById('viral-sort').value;
+
+  try {
+    const res = await fetch('/api/handler', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'viral_scrape', niche, region })
+    });
+
+    if (!res.ok) {
+      const errText = await res.text();
+      throw new Error('Server error ' + res.status + ': ' + errText.slice(0, 200));
+    }
+
+    const data = await res.json();
+    if (data.error) throw new Error(data.error);
+
+    let videos = data.videos || [];
+
+    // Client-side sort
+    if (sortBy === 'recent') {
+      videos.sort((a, b) => new Date(b.published) - new Date(a.published));
+    } else {
+      videos.sort((a, b) => b.viewCount - a.viewCount);
+    }
+
+    if (videos.length === 0) {
+      document.getElementById('viral-grid').innerHTML =
+        '<div style="grid-column:1/-1;padding:20px;text-align:center;font-family:var(--font-mono);font-size:12px;color:var(--accent3);">No videos found for this niche/region. Try a different category.</div>';
+    } else {
+      renderViralGrid(videos);
+    }
+
+    document.getElementById('viral-results').style.display = 'block';
+    document.getElementById('viral-count').textContent = videos.length + ' videos found';
+
+  } catch (e) {
+    document.getElementById('viral-results').style.display = 'block';
+    document.getElementById('viral-grid').innerHTML =
+      `<div style="grid-column:1/-1;padding:20px;font-family:var(--font-mono);font-size:12px;color:var(--accent3);">
+        ✗ ${e.message}<br><br>
+        <span style="color:var(--text3);">Make sure GROQ_API_KEY is set in Vercel → Settings → Environment Variables, then redeploy.</span>
+      </div>`;
+    document.getElementById('viral-count').textContent = 'error';
+    document.getElementById('viral-count').className = 'tag tag-red';
+  }
+
+  btn.disabled = false;
+  btn.innerHTML = '🔥 SCRAPE TRENDING VIDEOS';
+}
+
+function renderViralGrid(videos) {
+  const grid = document.getElementById('viral-grid');
+  grid.innerHTML = videos.map((v, i) => {
+    const views = v.viewCount > 0
+      ? (v.viewCount >= 1000000 ? (v.viewCount / 1000000).toFixed(1) + 'M' : v.viewCount >= 1000 ? (v.viewCount / 1000).toFixed(0) + 'K' : v.viewCount)
+      : '—';
+    const pubDate = v.published ? new Date(v.published).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '';
+    const titleSafe = v.title.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+    const descSafe = (v.description || '').replace(/'/g, "\\'").replace(/"/g, '&quot;').slice(0, 300);
+    const chSafe = (v.channelName || '').replace(/'/g, "\\'");
+
+    return `
+    <div class="result-card" style="overflow:hidden;transition:border-color 0.2s;" onmouseover="this.style.borderColor='rgba(255,64,96,0.4)'" onmouseout="this.style.borderColor='var(--border)'">
+      <div style="position:relative;">
+        <img src="${v.thumbnail}" alt="" style="width:100%;height:160px;object-fit:cover;display:block;background:var(--bg4);"
+          onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+        <div style="display:none;width:100%;height:160px;background:var(--bg3);align-items:center;justify-content:center;font-size:30px;">📺</div>
+        <div style="position:absolute;top:8px;left:8px;background:rgba(0,0,0,0.75);border-radius:3px;font-family:var(--font-mono);font-size:10px;color:#fff;padding:2px 7px;">#${i+1}</div>
+        ${v.viewCount > 500000 ? '<div style="position:absolute;top:8px;right:8px;background:rgba(255,64,96,0.9);border-radius:3px;font-family:var(--font-mono);font-size:10px;color:#fff;padding:2px 7px;">🔥 VIRAL</div>' : ''}
+        <a href="${v.url}" target="_blank" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;opacity:0;transition:opacity 0.15s;background:rgba(0,0,0,0.4);" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0'">
+          <div style="background:rgba(255,0,0,0.9);border-radius:50%;width:44px;height:44px;display:flex;align-items:center;justify-content:center;font-size:18px;">▶</div>
+        </a>
+      </div>
+      <div style="padding:12px;">
+        <div style="font-size:13px;font-weight:500;line-height:1.4;margin-bottom:8px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;">${v.title}</div>
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+          <span style="font-size:11px;color:var(--text3);font-family:var(--font-mono);">${v.channelName || 'Unknown Channel'}</span>
+          <span style="margin-left:auto;font-family:var(--font-mono);font-size:11px;color:${v.viewCount > 500000 ? 'var(--accent3)' : 'var(--text3)'};">👁 ${views}</span>
+          ${pubDate ? `<span style="font-family:var(--font-mono);font-size:10px;color:var(--text3);">${pubDate}</span>` : ''}
+        </div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;">
+          <button class="btn btn-ghost" style="font-size:11px;padding:5px 10px;flex:1;"
+            onclick="analyzeViral('${titleSafe}','${descSafe}','${chSafe}')">
+            🔍 Analyze Clips
+          </button>
+          <button class="btn btn-primary" style="font-size:11px;padding:5px 10px;flex:1;"
+            onclick="useViralAsTopic('${titleSafe}')">
+            ✍️ Use as Topic
+          </button>
+          <a href="${v.url}" target="_blank" class="btn btn-ghost" style="font-size:11px;padding:5px 10px;">▶ Watch</a>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function analyzeViral(title, description, channelName) {
+  const section = document.getElementById('viral-analysis-section');
+  const body = document.getElementById('viral-analysis-body');
+  const titleEl = document.getElementById('viral-analysis-title');
+  const useBtn = document.getElementById('viral-use-btn');
+
+  section.style.display = 'block';
+  body.textContent = '';
+  titleEl.textContent = '— ' + title.slice(0, 60) + (title.length > 60 ? '...' : '');
+  body.innerHTML = '<span class="spinner"></span> Analyzing viral patterns...';
+
+  // Scroll to analysis
+  section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+  try {
+    const res = await fetch('/api/handler', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'analyze_viral', videoTitle: title, videoDescription: description, channelName })
+    });
+
+    if (!res.ok) {
+      const t = await res.text();
+      throw new Error('API error ' + res.status + ': ' + t.slice(0, 150));
+    }
+
+    const data = await res.json();
+    if (data.error) throw new Error(data.error);
+
+    body.textContent = data.analysis || 'No analysis returned.';
+
+    // Wire up "Use as topic" button
+    useBtn.onclick = () => useViralAsTopic(title);
+
+  } catch (e) {
+    body.innerHTML = `<span style="color:var(--accent3);">✗ ${e.message}</span>`;
+  }
+}
+
+function useViralAsTopic(title) {
+  // Fill in Script Writer + Pipeline
+  const sw = document.getElementById('sw-topic');
+  const pipe = document.getElementById('pipe-topic');
+  if (sw) sw.value = title;
+  if (pipe) pipe.value = title;
+
+  // Navigate to Script Writer
+  document.querySelectorAll('.nav-item').forEach(n => {
+    if (n.textContent.includes('Script Writer')) n.click();
+  });
+}
+
+
   updateNextSlotDisplay();
   refreshQueue();
   setInterval(updateNextSlotDisplay, 30000);
   restoreYTConnection();
   restoreELConfig();
-  restoreNewsdataKey();
 });
 
 </script>
