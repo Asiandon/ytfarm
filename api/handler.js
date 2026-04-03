@@ -83,89 +83,132 @@ export default async function handler(req, res) {
     }
 
     // ============ VIRAL VIDEO SCRAPER ============
-    // Scrapes YouTube trending via RSS + noembed metadata
+    // Source 1: Invidious public API (YouTube trending mirror, no key)
+    // Source 2: Google News RSS → oembed title lookup
+    // Source 3: AI-generated trending topics (always works if GROQ_KEY set)
     if (action === 'viral_scrape') {
-      const { niche = 'news', region = 'US' } = body;
+      const { niche = 'all', region = 'US' } = body;
 
-      // YouTube trending RSS by category
-      const categoryMap = {
-        news: '25', tech: '28', finance: '25', entertainment: '24',
-        gaming: '20', education: '27', all: '0'
+      const nicheKeywords = {
+        news: 'breaking news', tech: 'technology AI',
+        finance: 'stock market finance', entertainment: 'viral trending',
+        gaming: 'gaming', education: 'educational', all: 'trending news'
       };
-      const catId = categoryMap[niche.toLowerCase()] || '0';
-
-      // Use YouTube trending RSS (free, no key)
-      const trendingUrl = `https://www.youtube.com/feeds/videos.xml?chart=mostpopular&regionCode=${region}&videoCategoryId=${catId}&max-results=20`;
+      const keyword = nicheKeywords[niche.toLowerCase()] || 'trending';
 
       let videos = [];
-      try {
-        const rssRes = await fetch(trendingUrl, {
-          headers: { 'User-Agent': 'Mozilla/5.0 (compatible; YTFarm/1.0)' }
-        });
-        if (rssRes.ok) {
-          const xml = await rssRes.text();
-          const entries = [...xml.matchAll(/<entry>([\s\S]*?)<\/entry>/g)];
-          for (const entry of entries.slice(0, 12)) {
-            const block = entry[1];
-            const videoId = block.match(/<yt:videoId>(.*?)<\/yt:videoId>/)?.[1] || '';
-            const title = block.match(/<title>(.*?)<\/title>/)?.[1]
-              ?.replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&#39;/g,"'") || '';
-            const published = block.match(/<published>(.*?)<\/published>/)?.[1] || '';
-            const viewCount = block.match(/<media:statistics views="(\d+)"/)?.[1] || '0';
-            const channelName = block.match(/<name>(.*?)<\/name>/)?.[1] || '';
-            const description = block.match(/<media:description>([\s\S]*?)<\/media:description>/)?.[1]
-              ?.trim().slice(0, 300) || '';
-            if (videoId && title) {
-              videos.push({
-                videoId,
-                title,
-                channelName,
-                viewCount: parseInt(viewCount),
-                published,
-                description,
-                thumbnail: `https://i.ytimg.com/vi/${videoId}/mqdefault.jpg`,
-                url: `https://www.youtube.com/watch?v=${videoId}`,
-                watchUrl: `https://www.youtube.com/watch?v=${videoId}`
+
+      // --- SOURCE 1: Invidious public instances (free YouTube trending mirror) ---
+      const invidiousInstances = [
+        'https://inv.nadeko.net',
+        'https://invidious.privacydev.net',
+        'https://yt.artemislena.eu',
+        'https://invidious.nerdvpn.de',
+        'https://invidious.lunar.icu',
+      ];
+      const invTypeMap = {
+        news: 'News%20%26%20Politics', tech: 'Science%20%26%20Technology',
+        finance: 'News%20%26%20Politics', entertainment: 'Entertainment',
+        gaming: 'Gaming', education: 'Education', all: ''
+      };
+      const invType = invTypeMap[niche.toLowerCase()] || '';
+
+      for (const instance of invidiousInstances) {
+        if (videos.length >= 8) break;
+        try {
+          const url = `${instance}/api/v1/trending?region=${region}${invType ? '&type=' + invType : ''}`;
+          const r = await fetch(url, {
+            headers: { 'User-Agent': 'Mozilla/5.0', Accept: 'application/json' },
+            signal: AbortSignal.timeout(5000)
+          });
+          if (!r.ok) continue;
+          const data = await r.json();
+          if (!Array.isArray(data) || data.length === 0) continue;
+          for (const v of data.slice(0, 12)) {
+            if (!v.videoId || !v.title) continue;
+            videos.push({
+              videoId: v.videoId,
+              title: v.title,
+              channelName: v.author || '',
+              viewCount: v.viewCount || 0,
+              published: v.published ? new Date(v.published * 1000).toISOString() : new Date().toISOString(),
+              description: (v.description || '').slice(0, 300),
+              thumbnail: `https://i.ytimg.com/vi/${v.videoId}/mqdefault.jpg`,
+              url: `https://www.youtube.com/watch?v=${v.videoId}`,
+              source: 'invidious'
+            });
+          }
+          if (videos.length > 0) break;
+        } catch (e) { /* try next instance */ }
+      }
+
+      // --- SOURCE 2: Google News RSS → find YouTube video IDs via oembed ---
+      if (videos.length < 6) {
+        try {
+          const rssUrl = `https://news.google.com/rss/search?q=${encodeURIComponent(keyword + ' youtube')}&hl=en-US&gl=US&ceid=US:en`;
+          const rssRes = await fetch(rssUrl, {
+            headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
+            signal: AbortSignal.timeout(7000)
+          });
+          if (rssRes.ok) {
+            const xml = await rssRes.text();
+            const ytMatches = [...xml.matchAll(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([A-Za-z0-9_-]{11})/g)];
+            const seenIds = new Set(videos.map(v => v.videoId));
+            const toFetch = [...new Set(ytMatches.map(m => m[1]))].filter(id => !seenIds.has(id)).slice(0, 6);
+            await Promise.all(toFetch.map(async (videoId) => {
+              try {
+                const oe = await fetch(`https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v=${videoId}&format=json`, { signal: AbortSignal.timeout(3000) });
+                if (!oe.ok) return;
+                const od = await oe.json();
+                videos.push({
+                  videoId, title: od.title || 'Trending Video', channelName: od.author_name || '',
+                  viewCount: 0, published: new Date().toISOString(), description: '',
+                  thumbnail: `https://i.ytimg.com/vi/${videoId}/mqdefault.jpg`,
+                  url: `https://www.youtube.com/watch?v=${videoId}`, source: 'news-rss'
+                });
+              } catch {}
+            }));
+          }
+        } catch (e) { /* continue */ }
+      }
+
+      // --- SOURCE 3: AI-generated trending (guaranteed fallback) ---
+      if (videos.length === 0) {
+        const GROQ_KEY = process.env.GROQ_API_KEY;
+        if (GROQ_KEY) {
+          try {
+            const aiRes = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + GROQ_KEY },
+              body: JSON.stringify({
+                model: 'llama-3.3-70b-versatile', max_tokens: 700, temperature: 0.8,
+                messages: [{ role: 'user', content: `Generate 8 realistic trending YouTube video titles for niche: "${niche}" as of today April 2025. Make them look like real viral videos with realistic channels and views. Return ONLY a JSON array, no markdown:\n[{"title":"...","channelName":"...","viewCount":1500000,"description":"Brief description of the video"}]\nNo preamble. Just the JSON array.` }]
+              })
+            });
+            if (aiRes.ok) {
+              const aiData = await aiRes.json();
+              const raw = (aiData.choices?.[0]?.message?.content || '[]').replace(/```json|```/g,'').trim();
+              const generated = JSON.parse(raw);
+              generated.forEach((v, i) => {
+                const fakeId = 'gen' + Date.now().toString(36) + i;
+                videos.push({
+                  videoId: fakeId, title: v.title || 'Trending Video', channelName: v.channelName || 'News Channel',
+                  viewCount: v.viewCount || Math.floor(Math.random()*2e6+1e5),
+                  published: new Date().toISOString(), description: v.description || '',
+                  thumbnail: `https://i.ytimg.com/vi/dQw4w9WgXcQ/mqdefault.jpg`,
+                  url: `https://www.youtube.com/results?search_query=${encodeURIComponent(v.title||'')}`,
+                  source: 'ai-generated', isAiGenerated: true
+                });
               });
             }
-          }
-        }
-      } catch(rssErr) {
-        console.error('RSS scrape error:', rssErr);
-      }
-
-      // Fallback: use YouTube search RSS for niche keyword
-      if (videos.length === 0) {
-        try {
-          const searchRss = `https://www.youtube.com/feeds/videos.xml?search_query=${encodeURIComponent(niche + ' news today')}&max-results=10`;
-          const sRes = await fetch(searchRss, { headers: { 'User-Agent': 'Mozilla/5.0' } });
-          if (sRes.ok) {
-            const xml = await sRes.text();
-            const entries = [...xml.matchAll(/<entry>([\s\S]*?)<\/entry>/g)];
-            for (const entry of entries.slice(0, 10)) {
-              const block = entry[1];
-              const videoId = block.match(/<yt:videoId>(.*?)<\/yt:videoId>/)?.[1] || '';
-              const title = block.match(/<title>(.*?)<\/title>/)?.[1]
-                ?.replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>') || '';
-              const channelName = block.match(/<name>(.*?)<\/name>/)?.[1] || '';
-              const published = block.match(/<published>(.*?)<\/published>/)?.[1] || '';
-              if (videoId && title) {
-                videos.push({ videoId, title, channelName, viewCount: 0, published,
-                  description: '', thumbnail: `https://i.ytimg.com/vi/${videoId}/mqdefault.jpg`,
-                  url: `https://www.youtube.com/watch?v=${videoId}` });
-              }
-            }
-          }
-        } catch(fallbackErr) {
-          console.error('Fallback RSS error:', fallbackErr);
+          } catch (e) { console.log('AI fallback error:', e.message); }
         }
       }
 
-      // Sort by view count descending
       videos.sort((a, b) => b.viewCount - a.viewCount);
-
-      return res.status(200).json({ videos: videos.slice(0, 12), total: videos.length });
+      return res.status(200).json({ videos: videos.slice(0, 12), total: videos.length, source: videos[0]?.source || 'none' });
     }
+
 
     // ============ VIRAL CLIP ANALYSIS — AI identifies viral moments ============
     if (action === 'analyze_viral') {
