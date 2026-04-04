@@ -232,6 +232,7 @@
     <div class="nav-section">Content</div>
     <div class="nav-item" onclick="showPanel('trends',this)"><span class="nav-icon">📡</span> Trend Finder</div>
     <div class="nav-item" onclick="showPanel('viral',this)"><span class="nav-icon">🔥</span> Viral Scraper</div>
+    <div class="nav-item" onclick="showPanel('clipper',this)"><span class="nav-icon">✂️</span> Auto-Clipper</div>
     <div class="nav-item" onclick="showPanel('script',this)"><span class="nav-icon">✍️</span> Script Writer</div>
     <div class="nav-item" onclick="showPanel('seo',this)"><span class="nav-icon">🔎</span> SEO & Titles</div>
     <div class="nav-item" onclick="showPanel('thumbnail',this)"><span class="nav-icon">🖼️</span> Thumbnail Prompt</div>
@@ -253,16 +254,16 @@
       <div class="section-hdr">
         <div>
           <div class="section-title">Dashboard</div>
-          <div class="section-sub">// system overview — March 14, 2026</div>
+          <div class="section-sub" id="dash-date">// system overview</div>
         </div>
         <span class="tag tag-green">ALL SYSTEMS GO</span>
       </div>
 
       <div class="grid-4">
-        <div class="card"><div class="card-label">Videos This Week</div><div class="card-value">42</div><div class="card-delta">↑ +21 from last week</div></div>
-        <div class="card"><div class="card-label">Total Views</div><div class="card-value">148K</div><div class="card-delta">↑ +18% this week</div></div>
-        <div class="card"><div class="card-label">Est. Revenue</div><div class="card-value">$214</div><div class="card-delta">RPM $1.45</div></div>
-        <div class="card"><div class="card-label">Avg Watch Time</div><div class="card-value">3:42</div><div class="card-delta">Target: 4:00 min</div></div>
+        <div class="card"><div class="card-label">Videos Queued</div><div class="card-value" id="dash-videos">0</div><div class="card-delta" id="dash-videos-sub">Run pipeline to start</div></div>
+        <div class="card"><div class="card-label">ElevenLabs</div><div class="card-value" id="dash-el-status" style="font-size:16px;padding-top:4px;">—</div><div class="card-delta" id="dash-el-sub">not configured</div></div>
+        <div class="card"><div class="card-label">YouTube OAuth</div><div class="card-value" id="dash-yt-status" style="font-size:16px;padding-top:4px;">—</div><div class="card-delta" id="dash-yt-sub">not connected</div></div>
+        <div class="card"><div class="card-label">Next Publish</div><div class="card-value" id="dash-next" style="font-size:14px;padding-top:6px;">—</div><div class="card-delta" id="dash-next-sub">set schedule in Auto-Publish</div></div>
       </div>
 
       <div class="grid-2">
@@ -310,12 +311,8 @@
       </div>
 
       <div style="font-family:var(--font-mono);font-size:10px;color:var(--text3);letter-spacing:.08em;margin-bottom:10px;">TODAY'S QUEUE</div>
-      <div class="result-card">
-        <div class="vq-row"><div class="vq-thumb">📰</div><div><div class="vq-title">US-Iran War: Strait of Hormuz Oil Crisis — What You Need To Know</div><div class="vq-meta">TodayBriefNews · 3:20 · Breaking News</div></div><span class="tag tag-green">ready</span></div>
-        <div class="vq-row"><div class="vq-thumb">💻</div><div><div class="vq-title">AI Regulation Bill Passes Senate — What It Means For Tech</div><div class="vq-meta">TechPulseFeed · 4:10 · Tech</div></div><span class="tag tag-green">ready</span></div>
-        <div class="vq-row"><div class="vq-thumb">📈</div><div><div class="vq-title">Fed Rate Decision Shock: Markets Crash Before Close</div><div class="vq-meta">FinanceAlertTV · 3:55 · Finance</div></div><span class="tag tag-amber">scripting</span></div>
-        <div class="vq-row"><div class="vq-thumb">🔬</div><div><div class="vq-title">NASA Moon Mission Update — Launch Window Confirmed</div><div class="vq-meta">TodayBriefNews · 2:50 · Science</div></div><span class="tag" style="background:var(--bg4);color:var(--text3);border:1px solid var(--border);">pending</span></div>
-        <div class="vq-row" style="border-left:2px solid var(--accent);"><div class="vq-thumb" style="background:rgba(0,229,160,0.1);">📰</div><div><div class="vq-title" style="color:var(--accent);">DailyFeedin — 3 slots ready for today</div><div class="vq-meta">DailyFeedin · Breaking News · awaiting first run</div></div><span class="tag tag-green">configure ↓</span></div>
+      <div class="result-card" id="dash-queue-list">
+        <div style="padding:20px;text-align:center;color:var(--text3);font-family:var(--font-mono);font-size:12px;">// No videos queued yet — run the pipeline to start</div>
       </div>
     </div>
 
@@ -540,9 +537,14 @@
               <option value="recent">Most Recent</option>
             </select>
           </div>
+          <div class="form-row">
+            <label>YouTube Data API Key <span style="color:var(--accent);font-weight:400;">(optional — for real trending data)</span></label>
+            <input type="password" id="viral-yt-api-key" placeholder="AIza... (get free at console.cloud.google.com)" oninput="localStorage.setItem('ytDataApiKey',this.value)">
+            <div style="font-size:10px;color:var(--text3);font-family:var(--font-mono);margin-top:4px;">Free: 10,000 units/day · console.cloud.google.com → YouTube Data API v3 → Credentials</div>
+          </div>
           <div style="margin-top:16px;display:flex;flex-direction:column;gap:8px;">
             <button class="btn btn-primary" id="viral-btn" onclick="scrapeViral()" style="width:100%;">🔥 SCRAPE TRENDING VIDEOS</button>
-            <div style="font-size:11px;color:var(--text3);font-family:var(--font-mono);text-align:center;">Uses YouTube RSS · 100% free · no API key</div>
+            <div style="font-size:11px;color:var(--text3);font-family:var(--font-mono);text-align:center;">Piped API → Invidious → Google News → AI fallback</div>
           </div>
         </div>
 
@@ -586,6 +588,124 @@
             <div style="margin-top:14px;display:flex;gap:8px;flex-wrap:wrap;">
               <button class="btn btn-primary" id="viral-use-btn" onclick="">✍️ USE AS SCRIPT TOPIC</button>
               <button class="btn btn-ghost" onclick="document.getElementById('viral-analysis-section').style.display='none'">✕ Close</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- AUTO-CLIPPER & CAPTIONS -->
+    <div class="panel" id="panel-clipper">
+      <div class="section-hdr">
+        <div><div class="section-title">✂️ Auto-Clipper & Captions</div><div class="section-sub">// paste YouTube URL → AI finds viral moments + generates SRT captions</div></div>
+        <span class="tag tag-green" style="margin-left:auto;">FREE · Groq AI</span>
+      </div>
+
+      <div class="grid-2" style="margin-bottom:16px;">
+        <!-- INPUT -->
+        <div class="card">
+          <div class="card-label" style="margin-bottom:12px;">📎 VIDEO INPUT</div>
+          <div class="form-row">
+            <label>YouTube URL</label>
+            <input type="text" id="clip-url" placeholder="https://www.youtube.com/watch?v=xxxxxxxx">
+          </div>
+          <div class="form-row">
+            <label>What to do</label>
+            <div class="toggle-group" id="clip-mode-group">
+              <div class="tgl on" onclick="setClipMode('clips',this)">✂️ Find Viral Clips</div>
+              <div class="tgl" onclick="setClipMode('captions',this)">💬 Generate Captions</div>
+              <div class="tgl" onclick="setClipMode('both',this)">⚡ Both</div>
+            </div>
+          </div>
+          <div class="form-row" id="cap-duration-row" style="display:none;">
+            <label>Video Duration (seconds) — for caption timing</label>
+            <input type="number" id="cap-duration" value="180" min="30" max="3600">
+          </div>
+          <div class="form-row" id="cap-script-row" style="display:none;">
+            <label>Script / Transcript (paste if you have it)</label>
+            <textarea id="cap-script" style="min-height:100px;" placeholder="Paste your script here for accurate SRT captions..."></textarea>
+          </div>
+          <div style="margin-top:16px;">
+            <button class="btn btn-primary" id="clip-btn" onclick="runClipper()" style="width:100%;">✂️ ANALYZE & CLIP</button>
+          </div>
+          <div style="margin-top:10px;font-size:11px;color:var(--text3);font-family:var(--font-mono);line-height:1.7;">
+            ℹ Paste any YouTube URL. AI reads the transcript (if available) to find the 3 most viral moments with exact timestamps, clip strategy, and captions.
+          </div>
+        </div>
+
+        <!-- HOW IT WORKS -->
+        <div>
+          <div class="card-label" style="margin-bottom:10px;">HOW IT WORKS</div>
+          <div class="card" style="border-color:rgba(255,64,96,0.2);font-size:12px;color:var(--text2);line-height:1.9;margin-bottom:12px;">
+            <div style="font-family:var(--font-mono);font-size:10px;color:var(--accent3);margin-bottom:8px;">AUTO-CLIP WORKFLOW</div>
+            <div><span style="color:var(--text);">Step 1 →</span> Paste any YouTube video URL</div>
+            <div><span style="color:var(--text);">Step 2 →</span> AI fetches transcript (if public)</div>
+            <div><span style="color:var(--text);">Step 3 →</span> Identifies 3 viral moments + exact timestamps</div>
+            <div><span style="color:var(--text);">Step 4 →</span> Use timestamps in CapCut/Premiere to cut clips</div>
+            <div><span style="color:var(--text);">Step 5 →</span> Download SRT captions for your edited clip</div>
+          </div>
+          <div class="card" style="border-color:rgba(155,109,255,0.2);font-size:12px;color:var(--text2);line-height:1.9;">
+            <div style="font-family:var(--font-mono);font-size:10px;color:var(--purple);margin-bottom:8px;">CAPTION WORKFLOW</div>
+            <div><span style="color:var(--text);">Option A →</span> Paste your own script → get SRT file</div>
+            <div><span style="color:var(--text);">Option B →</span> Paste YouTube URL → extract transcript → SRT</div>
+            <div><span style="color:var(--text);">Download →</span> Import .srt into any video editor</div>
+            <div><span style="color:var(--text);">Social →</span> Get 5 punchy captions for Shorts/Reels/TikTok</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- RESULTS -->
+      <div id="clipper-results" style="display:none;">
+        <hr class="divider">
+
+        <!-- CLIP ANALYSIS -->
+        <div id="clip-analysis-section" style="display:none;margin-bottom:16px;">
+          <div class="result-card" style="border-color:rgba(255,64,96,0.3);">
+            <div class="result-card-header" style="background:rgba(255,64,96,0.05);">
+              <span style="font-size:16px;">✂️</span>
+              <span style="font-weight:600;font-size:13px;">Viral Clip Analysis</span>
+              <span id="clip-video-info" style="font-size:11px;color:var(--text3);font-family:var(--font-mono);margin-left:8px;"></span>
+              <span id="clip-transcript-badge" class="tag" style="margin-left:auto;"></span>
+              <button class="copy-btn" onclick="copyEl('clip-analysis-body')">copy</button>
+            </div>
+            <div class="result-card-body">
+              <div id="clip-analysis-body" style="font-size:13px;line-height:1.9;white-space:pre-wrap;"></div>
+              <div id="clip-thumbnail" style="margin-top:14px;display:none;">
+                <div class="card-label" style="margin-bottom:8px;">VIDEO THUMBNAIL PREVIEW</div>
+                <img id="clip-thumb-img" src="" alt="" style="max-width:320px;border-radius:6px;border:1px solid var(--border);">
+              </div>
+              <div style="margin-top:14px;display:flex;gap:8px;flex-wrap:wrap;">
+                <button class="btn btn-primary" id="clip-use-script-btn" onclick="">✍️ Use as Script Topic</button>
+                <button class="btn btn-ghost" id="clip-open-yt-btn" onclick="" target="_blank">▶ Open on YouTube</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- CAPTIONS OUTPUT -->
+        <div id="captions-section" style="display:none;">
+          <div class="grid-2">
+            <div class="result-card" style="border-color:rgba(155,109,255,0.3);">
+              <div class="result-card-header" style="background:rgba(155,109,255,0.05);">
+                <span style="font-size:16px;">💬</span>
+                <span style="font-weight:600;font-size:13px;">SRT Captions File</span>
+                <button class="copy-btn" onclick="copyEl('srt-output')">copy</button>
+                <button class="btn btn-ghost" onclick="downloadSRT()" style="font-size:11px;padding:3px 8px;margin-left:4px;">⬇ Download .srt</button>
+              </div>
+              <div class="result-card-body">
+                <pre id="srt-output" style="font-family:var(--font-mono);font-size:11px;line-height:1.7;max-height:300px;overflow-y:auto;color:var(--text2);white-space:pre-wrap;"></pre>
+              </div>
+            </div>
+            <div class="result-card" style="border-color:rgba(0,229,160,0.3);">
+              <div class="result-card-header" style="background:rgba(0,229,160,0.05);">
+                <span style="font-size:16px;">📱</span>
+                <span style="font-weight:600;font-size:13px;">Social Media Captions</span>
+                <button class="copy-btn" onclick="copyEl('social-captions-output')">copy all</button>
+              </div>
+              <div class="result-card-body">
+                <div id="social-captions-output" style="font-size:13px;line-height:2;"></div>
+                <div style="margin-top:10px;font-size:11px;color:var(--text3);font-family:var(--font-mono);">Use for YouTube Shorts · Instagram Reels · TikTok</div>
+              </div>
             </div>
           </div>
         </div>
@@ -843,7 +963,7 @@
         <button class="btn btn-ghost" id="sched-gen-btn" onclick="genSchedule()" style="margin-left:auto;">⚡ Generate Week</button>
       </div>
       <div class="card" style="margin-bottom:16px;">
-        <div class="card-label" style="margin-bottom:12px;">CURRENT WEEK — Mar 9–15, 2026</div>
+        <div class="card-label" id="sched-week-label" style="margin-bottom:12px;">CURRENT WEEK</div>
         <div class="sched-grid">
           <div class="sched-head"></div>
           <div class="sched-head">Mon</div><div class="sched-head">Tue</div><div class="sched-head">Wed</div>
@@ -1265,32 +1385,69 @@
           </div>
 
           <div style="background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:12px;margin-bottom:14px;font-size:12px;color:var(--text2);line-height:1.8;">
-            <div style="font-family:var(--font-mono);font-size:10px;color:var(--purple);margin-bottom:6px;">HOW TO GET YOUR API KEY</div>
-            <div>1. Go to <span style="color:#9b6dff;font-family:var(--font-mono);">elevenlabs.io</span> → Sign up free (10,000 chars/month free)</div>
-            <div>2. Click your profile → <span style="color:var(--text);">API Keys</span> → Generate → copy the key</div>
-            <div>3. Paste below → click Save → voiceover generates automatically in the pipeline</div>
-            <div style="margin-top:8px;background:rgba(0,229,160,0.07);border:1px solid rgba(0,229,160,0.2);border-radius:4px;padding:8px;color:var(--accent);font-family:var(--font-mono);font-size:10px;">
-              ✓ Using <strong>eleven_turbo_v2_5</strong> model — free tier compatible, fast, high quality.<br>
-              ✗ eleven_monolingual_v1 and eleven_multilingual_v1 are deprecated and removed from free tier.
+            <div style="font-family:var(--font-mono);font-size:10px;color:var(--purple);margin-bottom:6px;">FREE TIER — BUILT-IN VOICES ONLY</div>
+            <div>Free ElevenLabs accounts can only use <strong>built-in voices</strong> (not library voices like Rachel/Adam).</div>
+            <div>Built-in free voices: <span style="color:var(--text);">Brian, Alice, Bill, Charlie, Charlotte, Daniel, Eric, George, Jessica, Laura, Liam, Lily, Matilda, River, Sarah, Will</span></div>
+            <div style="margin-top:8px;background:rgba(0,102,255,0.07);border:1px solid rgba(0,102,255,0.2);border-radius:4px;padding:8px;color:#4d9fff;font-family:var(--font-mono);font-size:10px;">
+              💡 No ElevenLabs? Enable <strong>Browser TTS</strong> below — 100% free, works offline, no account needed.
             </div>
           </div>
 
+          <!-- BROWSER TTS OPTION -->
+          <div style="background:rgba(0,229,160,0.06);border:1px solid rgba(0,229,160,0.25);border-radius:6px;padding:14px;margin-bottom:14px;">
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
+              <span style="font-family:var(--font-mono);font-size:10px;color:var(--accent);letter-spacing:.08em;">OPTION A — BROWSER TTS (100% FREE · NO ACCOUNT)</span>
+              <span id="browser-tts-status" class="tag tag-green" style="margin-left:auto;">always available</span>
+            </div>
+            <div style="font-size:12px;color:var(--text2);margin-bottom:10px;">Uses your browser's built-in voices — no API key, no limits, works offline. Quality varies by browser (Chrome/Edge have the best voices).</div>
+            <div style="display:grid;grid-template-columns:1fr auto;gap:10px;align-items:end;">
+              <div>
+                <label>Browser Voice</label>
+                <select id="browser-voice-select" style="width:100%;"></select>
+              </div>
+              <button class="btn btn-ghost" onclick="testBrowserTTS()" style="white-space:nowrap;">▶ Test Voice</button>
+            </div>
+            <div style="margin-top:10px;display:flex;gap:8px;">
+              <button class="btn btn-primary" onclick="setBrowserTTSMode(true)" id="browser-tts-enable-btn">✓ USE BROWSER TTS</button>
+              <div id="browser-tts-result" style="font-family:var(--font-mono);font-size:12px;color:var(--text3);align-self:center;"></div>
+            </div>
+          </div>
+
+          <div style="font-family:var(--font-mono);font-size:10px;color:var(--text3);letter-spacing:.08em;margin-bottom:10px;">— OR — ELEVENLABS (BETTER QUALITY · FREE TIER)</div>
+
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px;">
             <div>
-              <label>ElevenLabs API Key</label>
+              <label>ElevenLabs API Key <span style="color:var(--text3);font-weight:400;">(optional)</span></label>
               <input type="password" id="el-api-key" placeholder="sk_xxxxxxxxxxxxxxxxxxxxxxxx" oninput="onELInput()">
             </div>
             <div>
-              <label>Voice</label>
+              <label>Voice <span style="color:var(--accent3);font-size:10px;">(FREE built-in voices only)</span></label>
               <select id="el-voice-id">
-                <option value="21m00Tcm4TlvDq8ikWAM">Rachel — calm, professional female</option>
-                <option value="AZnzlk1XvdvUeBnXmlld">Domi — strong, confident female</option>
-                <option value="EXAVITQu4vr4xnSDxMaL">Bella — warm, friendly female</option>
-                <option value="ErXwobaYiN019PkySvjV">Antoni — well-rounded male</option>
-                <option value="VR6AewLTigWG4xSOukaG">Arnold — crisp news anchor male</option>
-                <option value="pNInz6obpgDQGcFmaJgB">Adam — deep authoritative male ← best for news</option>
-                <option value="yoZ06aMxZJJ28mfd3POQ">Sam — raspy, dynamic male</option>
-                <option value="onwK4e9ZLuTAKqWW03F9">Daniel — British newsreader male</option>
+                <optgroup label="✓ FREE — Built-in Voices">
+                  <option value="nPczCjzI2devNBz1zQrb">Brian — deep, authoritative male ← best for news</option>
+                  <option value="9BWtsMINqrJLrRacOk9x">Aria — expressive female</option>
+                  <option value="CwhRBWXzGAHq8TQ4Fs17">Roger — confident male</option>
+                  <option value="EXAVITQu4vr4xnSDxMaL">Sarah — soft, news female</option>
+                  <option value="FGY2WhTYpPnrIDTdsKH5">Laura — upbeat female</option>
+                  <option value="IKne3meq5aSn9XLyUdCD">Charlie — casual Australian male</option>
+                  <option value="JBFqnCBsd6RMkjVDRZzb">George — warm British male</option>
+                  <option value="N2lVS1w4EtoT3dr4eOWO">Callum — intense male</option>
+                  <option value="TX3LPaxmHKxFdv7VOQHJ">Liam — articulate male</option>
+                  <option value="XB0fDUnXU5powFXDhCwa">Charlotte — seductive female</option>
+                  <option value="Xb7hH8MSUJpSbSDYk0k2">Alice — confident British female</option>
+                  <option value="XrExE9yKIg1WjnnlVkGX">Matilda — warm US female</option>
+                  <option value="bIHbv24MWmeRgasZH58o">Will — friendly male</option>
+                  <option value="cgSgspJ2msm6clMCkdW9">Jessica — expressive female</option>
+                  <option value="iP95p4xoKVk53GoZ742B">Chris — casual male</option>
+                  <option value="onwK4e9ZLuTAKqWW03F9">Daniel — British newsreader</option>
+                  <option value="pFZP5JQG7iQjIQuC4Bku">Lily — warm British female</option>
+                  <option value="pqHfZKP75CvOlQylNhV4">Bill — trustworthy male</option>
+                </optgroup>
+                <optgroup label="✗ PAID — Library Voices (upgrade required)">
+                  <option value="21m00Tcm4TlvDq8ikWAM" disabled>Rachel — PAID only</option>
+                  <option value="pNInz6obpgDQGcFmaJgB" disabled>Adam — PAID only</option>
+                  <option value="ErXwobaYiN019PkySvjV" disabled>Antoni — PAID only</option>
+                </optgroup>
               </select>
             </div>
           </div>
@@ -1299,9 +1456,9 @@
             <label>TTS Model</label>
             <select id="el-model-id">
               <option value="eleven_turbo_v2_5" selected>eleven_turbo_v2_5 — FREE tier · fastest · recommended ✓</option>
+              <option value="eleven_flash_v2_5">eleven_flash_v2_5 — FREE tier · ultra fast</option>
               <option value="eleven_turbo_v2">eleven_turbo_v2 — FREE tier · fast</option>
               <option value="eleven_multilingual_v2">eleven_multilingual_v2 — PAID · best quality</option>
-              <option value="eleven_flash_v2_5">eleven_flash_v2_5 — FREE tier · ultra fast</option>
             </select>
           </div>
 
@@ -1321,7 +1478,7 @@
           </div>
 
           <div style="display:flex;gap:10px;align-items:center;">
-            <button class="btn btn-primary" style="background:var(--purple);color:#fff;" onclick="saveELConfig()" id="el-save-btn">💾 SAVE & TEST VOICE</button>
+            <button class="btn btn-primary" style="background:var(--purple);color:#fff;" onclick="saveELConfig()" id="el-save-btn">💾 SAVE & TEST ELEVENLABS</button>
             <div id="el-config-result" style="font-family:var(--font-mono);font-size:12px;color:var(--text3);flex:1;"></div>
           </div>
         </div>
@@ -1526,6 +1683,7 @@ Output: One clear DALL·E 3 prompt in 2-3 sentences. Then one line: "Text overla
           action: 'el_tts',
           api_key: elKey,
           voice_id: elVoiceId,
+          model_id: elModelId,
           text: cleanScript.slice(0, 5000),
           voice_settings: {
             stability: elStability,
@@ -1590,27 +1748,41 @@ Output: One clear DALL·E 3 prompt in 2-3 sentences. Then one line: "Text overla
       setPipeStep('voice','error','failed');
       log('[ERROR] Voiceover failed: '+e.message,'err');
     }
+  } else if (localStorage.getItem('browserTTSMode') === 'true') {
+    // Browser TTS fallback — free, no account needed
+    log('[00:38] Using Browser TTS (free)...','info');
+    document.getElementById('el-audio-msg').innerHTML='<span style="color:var(--text3);">🔊 Playing via Browser TTS...</span>';
+    document.getElementById('el-audio-status').textContent='browser tts';
+    document.getElementById('el-audio-status').className='tag tag-blue';
+
+    const cleanScript2 = script.replace(/\[B-ROLL:[^\]]+\]/gi,'').replace(/[🔴📌📣🎬🎯⏱️═]+/g,'').replace(/\n{3,}/g,'\n\n').trim();
+    await speakWithBrowserTTS(cleanScript2.slice(0, 3000));
+
+    document.getElementById('el-audio-msg').innerHTML='<span style="color:var(--accent);">✓ Browser TTS played. Note: Browser TTS cannot be downloaded as MP3 — use ElevenLabs for downloadable audio.</span>';
+    document.getElementById('el-audio-status').textContent='✓ played';
+    document.getElementById('el-audio-status').className='tag tag-green';
+    setPipeStep('voice','done','browser tts ✓');
+    log('[00:45] ✓ Browser TTS complete','bold');
   } else {
-    // No API key — show instructions
+    // No TTS configured at all
     document.getElementById('el-audio-msg').innerHTML=`
-      <div style="color:var(--amber);margin-bottom:8px;">⚠ ElevenLabs API key not configured</div>
+      <div style="color:var(--amber);margin-bottom:8px;">⚠ No voiceover configured</div>
       <div style="color:var(--text2);line-height:1.8;">
-        Go to <strong>Settings → ElevenLabs TTS</strong> → paste your API key → Save.<br>
-        Then rerun the pipeline to get real audio. Free tier: 10,000 chars/month.<br>
-        Get your key at <span style="color:var(--purple);">elevenlabs.io</span>
+        <strong>Option A (100% free):</strong> Go to <strong>Settings → ElevenLabs TTS → Browser TTS</strong> → click USE BROWSER TTS.<br>
+        <strong>Option B (free account):</strong> Get a free ElevenLabs key at <span style="color:var(--purple);">elevenlabs.io</span> → use only built-in voices (Brian, George, etc.)
       </div>`;
-    document.getElementById('el-audio-status').textContent='no api key';
+    document.getElementById('el-audio-status').textContent='not configured';
     document.getElementById('el-audio-status').className='tag tag-amber';
     setPipeStep('voice','done','skipped');
-    log('[00:38] ElevenLabs key not set — go to Settings to configure','warn');
+    log('[00:38] No TTS — enable Browser TTS in Settings (free) or add ElevenLabs key','warn');
   }
 
   // STEP 6: UPLOAD TO YOUTUBE
   setPipeStep('upload','running','publishing...');
   log('[00:45] Preparing YouTube upload...','info');
 
-  const isDailyFeedin = channel.includes('DailyFeedin');
-  const accessToken = isDailyFeedin ? await getValidAccessToken() : null;
+  const isDailyFeedin = true; // always try to use connected YouTube account
+  const accessToken = await getValidAccessToken();
   const mode = document.getElementById('p-mode')?.value || 'scheduled';
 
   if(isDailyFeedin && accessToken){
@@ -1817,7 +1989,7 @@ function useTrend(title){
 async function generateScript(){
   const btn=document.getElementById('sw-btn');
   btn.disabled=true; btn.innerHTML='<span class="spinner"></span> Writing...';
-  const topic=document.getElementById('sw-topic').value.trim()||'top trending news story today March 14 2026';
+  const topic=document.getElementById('sw-topic').value.trim()||(()=>{const d=new Date();return'top trending news story today '+d.toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'});})();
   const style=document.getElementById('sw-style').value;
   const length=document.getElementById('sw-length').value;
   const extra=document.getElementById('sw-extra').value;
@@ -2393,6 +2565,7 @@ async function regenAudio(){
       action:'el_tts',
       api_key:elKey,
       voice_id:elVoiceId,
+      model_id:localStorage.getItem('elModelId')||'eleven_turbo_v2_5',
       text:cleanScript.slice(0,5000),
       voice_settings:{
         stability:parseFloat(localStorage.getItem('elStability')||'0.5'),
@@ -2631,25 +2804,26 @@ function refreshQueue(){
 }
 
 async function publishItem(id){
-  const token=document.getElementById('pub-access-token').value.trim();
+  const token = await getValidAccessToken();
   if(!token){
-    alert('No OAuth token — go to Auto-Publish and connect YouTube first.');
+    // Show inline error in the queue result area instead of browser alert
+    const resultEl = document.getElementById('pub-connect-result');
+    if(resultEl) resultEl.innerHTML=`<span style="color:var(--accent3);">⚠ Not connected to YouTube.<br>Go to <strong>Settings → YouTube OAuth 2.0</strong> → fill in Client ID + Client Secret + Refresh Token → click <strong>CONNECT PERMANENTLY</strong>.<br><span style="color:var(--text3);">Your tokens are saved permanently — you only do this once.</span></span>`;
+    // Navigate to settings
+    document.querySelectorAll('.nav-item').forEach(n=>{if(n.textContent.includes('Settings'))n.click();});
     return;
   }
   const queue=JSON.parse(localStorage.getItem('ytQueue')||'[]');
   const item=queue.find(v=>v.id===id);
   if(!item) return;
-  // Update title to include hashtags in description
   const hashtags=document.getElementById('p-hashtags')?.value||'#BreakingNews #DailyFeedin';
   item.payload.snippet.description=(item.payload.snippet.description||'')+'\n\n'+hashtags;
-  // Set to public immediately
   item.payload.status.privacyStatus='public';
   delete item.payload.status.publishAt;
-  // Show note — actual bytes upload needs a video file
   item.status='metadata-ready';
   localStorage.setItem('ytQueue',JSON.stringify(queue));
   refreshQueue();
-  document.getElementById('pub-connect-result').innerHTML=`<span style="color:var(--accent);">✓ Metadata for "<strong>${item.title}</strong>" is ready. Call <span style="font-family:var(--font-mono);">uploadVideoFile(videoBlob)</span> with your rendered .mp4 to push the full video to YouTube.</span>`;
+  document.getElementById('pub-connect-result').innerHTML=`<span style="color:var(--accent);">✓ Metadata for "<strong>${item.title}</strong>" is ready. Attach your rendered .mp4 to complete the YouTube upload.</span>`;
 }
 
 function publishNext(){
@@ -2666,7 +2840,281 @@ function clearQueue(){
   }
 }
 
-// ============ VIRAL VIDEO SCRAPER ============
+// ============ BROWSER TTS (100% FREE) ============
+let browserTTSEnabled = false;
+let browserVoices = [];
+
+function initBrowserTTS() {
+  if (!('speechSynthesis' in window)) return;
+  const loadVoices = () => {
+    browserVoices = speechSynthesis.getVoices().filter(v => v.lang.startsWith('en'));
+    const sel = document.getElementById('browser-voice-select');
+    if (!sel || !browserVoices.length) return;
+    sel.innerHTML = browserVoices.map((v,i) => `<option value="${i}">${v.name} (${v.lang})${v.default?' ← default':''}</option>`).join('');
+    // Auto-select a good voice
+    const goodVoice = browserVoices.findIndex(v => v.name.toLowerCase().includes('david') || v.name.toLowerCase().includes('mark') || v.name.toLowerCase().includes('guy') || v.name.toLowerCase().includes('english'));
+    if (goodVoice > -1 && sel.options[goodVoice]) sel.selectedIndex = goodVoice;
+  };
+  speechSynthesis.onvoiceschanged = loadVoices;
+  loadVoices();
+  // Restore setting
+  browserTTSEnabled = localStorage.getItem('browserTTSMode') === 'true';
+  if (browserTTSEnabled) {
+    const btn = document.getElementById('browser-tts-enable-btn');
+    if (btn) { btn.textContent = '✓ ACTIVE'; btn.style.background = 'var(--accent)'; btn.style.color = '#000'; }
+    document.getElementById('browser-tts-result').textContent = 'Browser TTS active — pipeline will use this voice';
+    document.getElementById('browser-tts-result').style.color = 'var(--accent)';
+  }
+}
+
+function setBrowserTTSMode(enabled) {
+  browserTTSEnabled = enabled;
+  localStorage.setItem('browserTTSMode', enabled ? 'true' : 'false');
+  const btn = document.getElementById('browser-tts-enable-btn');
+  const res = document.getElementById('browser-tts-result');
+  if (enabled) {
+    if (btn) { btn.textContent = '✓ ACTIVE'; btn.style.background = 'var(--accent)'; btn.style.color = '#000'; }
+    if (res) { res.textContent = 'Browser TTS active — pipeline uses this voice'; res.style.color = 'var(--accent)'; }
+  } else {
+    if (btn) { btn.textContent = '✓ USE BROWSER TTS'; btn.style.background = ''; btn.style.color = ''; }
+    if (res) { res.textContent = ''; }
+  }
+}
+
+function testBrowserTTS() {
+  if (!('speechSynthesis' in window)) { alert('Browser TTS not supported in this browser. Try Chrome or Edge.'); return; }
+  const sel = document.getElementById('browser-voice-select');
+  const voice = browserVoices[parseInt(sel?.value || '0')];
+  const utt = new SpeechSynthesisUtterance('Breaking news. The pipeline is ready. DailyFeedin is live.');
+  if (voice) utt.voice = voice;
+  utt.rate = 0.9; utt.pitch = 1.0;
+  speechSynthesis.cancel();
+  speechSynthesis.speak(utt);
+}
+
+async function speakWithBrowserTTS(text, onDone) {
+  if (!('speechSynthesis' in window)) { if (onDone) onDone(null); return; }
+  return new Promise((resolve) => {
+    const sel = document.getElementById('browser-voice-select');
+    const voice = browserVoices[parseInt(sel?.value || '0')];
+    // Split into chunks to avoid browser limits
+    const chunks = text.match(/.{1,200}(?:\s|$)/g) || [text];
+    let idx = 0;
+    const speak = () => {
+      if (idx >= chunks.length) { resolve(null); if (onDone) onDone(null); return; }
+      const utt = new SpeechSynthesisUtterance(chunks[idx++]);
+      if (voice) utt.voice = voice;
+      utt.rate = 0.9;
+      utt.onend = speak;
+      speechSynthesis.speak(utt);
+    };
+    speechSynthesis.cancel();
+    speak();
+  });
+}
+
+// ============ AUTO-CLIPPER & CAPTIONS ============
+let clipMode = 'clips';
+function setClipMode(mode, el) {
+  clipMode = mode;
+  document.querySelectorAll('#clip-mode-group .tgl').forEach(t => t.classList.remove('on'));
+  el.classList.add('on');
+  const showScript = mode === 'captions' || mode === 'both';
+  const showDur = showScript;
+  document.getElementById('cap-duration-row').style.display = showDur ? 'block' : 'none';
+  document.getElementById('cap-script-row').style.display = showScript ? 'block' : 'none';
+  document.getElementById('clip-btn').textContent = mode === 'captions' ? '💬 GENERATE CAPTIONS' : mode === 'both' ? '⚡ ANALYZE + CAPTIONS' : '✂️ ANALYZE & CLIP';
+}
+
+async function runClipper() {
+  const btn = document.getElementById('clip-btn');
+  const url = document.getElementById('clip-url').value.trim();
+  const script = document.getElementById('cap-script')?.value.trim() || '';
+  const duration = parseInt(document.getElementById('cap-duration')?.value || '180');
+
+  if (!url && !script) { alert('Enter a YouTube URL or paste a script.'); return; }
+
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> Analyzing...';
+  document.getElementById('clipper-results').style.display = 'none';
+
+  const doClips = clipMode === 'clips' || clipMode === 'both';
+  const doCaptions = clipMode === 'captions' || clipMode === 'both';
+
+  try {
+    let clipData = null, captionData = null;
+
+    // CLIPS — use analyze_viral action
+    if (doClips && url) {
+      // Extract video ID from URL
+      const vidIdMatch = url.match(/(?:v=|youtu\.be\/)([A-Za-z0-9_-]{11})/);
+      const videoId = vidIdMatch ? vidIdMatch[1] : '';
+
+      // Fetch video info via oembed first
+      let videoTitle = url, channelName = '', thumbUrl = '';
+      try {
+        const oe = await fetch(`https://www.youtube.com/oembed?url=${encodeURIComponent(url)}&format=json`);
+        if (oe.ok) { const od = await oe.json(); videoTitle = od.title||url; channelName = od.author_name||''; }
+        if (videoId) thumbUrl = `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`;
+      } catch {}
+
+      const res = await fetch('/api/handler', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'analyze_viral', videoTitle, channelName, videoDescription: '', duration })
+      });
+      const raw = await res.text();
+      if (!raw) throw new Error('Empty response from server');
+      clipData = JSON.parse(raw);
+      if (clipData.error) throw new Error(clipData.error);
+      clipData.videoInfo = { title: videoTitle };
+      clipData.videoId = videoId;
+      clipData.thumbnailUrl = thumbUrl;
+      clipData.hasTranscript = false;
+      clipData.analysis = clipData.analysis || '';
+
+      document.getElementById('clip-analysis-section').style.display = 'block';
+      document.getElementById('clip-analysis-body').textContent = clipData.analysis;
+      document.getElementById('clip-video-info').textContent = videoTitle ? `— ${videoTitle.slice(0,50)}` : '';
+      const badge = document.getElementById('clip-transcript-badge');
+      badge.textContent = '⚡ AI clip strategy (no transcript needed)';
+      badge.className = 'tag tag-blue';
+
+      if (thumbUrl) {
+        document.getElementById('clip-thumbnail').style.display = 'block';
+        document.getElementById('clip-thumb-img').src = thumbUrl;
+      }
+      const ytBtn = document.getElementById('clip-open-yt-btn');
+      if (ytBtn) ytBtn.onclick = () => window.open(url, '_blank');
+      const scriptBtn = document.getElementById('clip-use-script-btn');
+      if (scriptBtn) scriptBtn.onclick = () => {
+        const sw = document.getElementById('sw-topic'); if (sw) sw.value = videoTitle;
+        const pipe = document.getElementById('pipe-topic'); if (pipe) pipe.value = videoTitle;
+        document.querySelectorAll('.nav-item').forEach(n => { if (n.textContent.includes('Script Writer')) n.click(); });
+      };
+    }
+
+    // CAPTIONS — use generate_captions action
+    if (doCaptions) {
+      const captionScript = script || (clipData?.videoInfo?.title ? `News report about: ${clipData.videoInfo.title}` : '');
+      if (captionScript) {
+        const capRes = await fetch('/api/handler', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'generate_captions', script: captionScript })
+        });
+        const capRaw = await capRes.text();
+        if (capRaw) {
+          captionData = JSON.parse(capRaw);
+          if (!captionData.error) {
+            document.getElementById('captions-section').style.display = 'block';
+            document.getElementById('srt-output').textContent = captionData.srt || '';
+            // Generate social captions from script title
+            const socialText = [
+              `🔴 BREAKING: ${captionScript.slice(0,80)}...`,
+              `🚨 You won't believe what just happened → ${captionScript.slice(0,60)}`,
+              `⚡ This is going viral right now: ${captionScript.slice(0,70)}`,
+              `💥 JUST IN: ${captionScript.slice(0,75)}... Watch NOW`,
+              `🔥 Everyone's talking about this → ${captionScript.slice(0,65)}`
+            ].join('\n\n');
+            document.getElementById('social-captions-output').innerHTML = socialText.replace(/\n/g,'<br>');
+            window._lastSRT = captionData.srt || '';
+            window._lastSRTTitle = clipData?.videoInfo?.title || 'captions';
+          }
+        }
+      }
+    }
+
+    document.getElementById('clipper-results').style.display = 'block';
+    document.getElementById('clipper-results').classList.add('fade-in');
+
+  } catch(e) {
+    document.getElementById('clipper-results').style.display = 'block';
+    document.getElementById('clip-analysis-section').style.display = 'block';
+    document.getElementById('clip-analysis-body').textContent = '✗ Error: ' + e.message + '\n\nMake sure GROQ_API_KEY is set in Vercel → Settings → Environment Variables.';
+  }
+
+  btn.disabled = false;
+  btn.innerHTML = clipMode === 'captions' ? '💬 GENERATE CAPTIONS' : '✂️ ANALYZE & CLIP';
+}
+
+function downloadSRT() {
+  const srt = window._lastSRT;
+  if (!srt) { alert('No captions generated yet.'); return; }
+  const blob = new Blob([srt], { type: 'text/plain' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = (window._lastSRTTitle || 'captions').replace(/[^a-z0-9]/gi, '-').toLowerCase() + '.srt';
+  a.click();
+}
+
+
+function updateDashboard() {
+  // Date
+  const dateEl = document.getElementById('dash-date');
+  if (dateEl) dateEl.textContent = '// system overview — ' + new Date().toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'});
+
+  // Schedule week label
+  const weekEl = document.getElementById('sched-week-label');
+  if (weekEl) {
+    const now = new Date();
+    const mon = new Date(now); mon.setDate(now.getDate() - now.getDay() + 1);
+    const sun = new Date(mon); sun.setDate(mon.getDate() + 6);
+    const fmt = d => d.toLocaleDateString('en-US',{month:'short',day:'numeric'});
+    weekEl.textContent = `CURRENT WEEK — ${fmt(mon)}–${fmt(sun)}, ${sun.getFullYear()}`;
+  }
+
+  // Queue stats
+  const queue = JSON.parse(localStorage.getItem('ytQueue') || '[]');
+  const queued = queue.filter(v => v.status === 'queued').length;
+  const uploaded = queue.filter(v => v.status === 'uploaded').length;
+  const vidEl = document.getElementById('dash-videos');
+  const vidSub = document.getElementById('dash-videos-sub');
+  if (vidEl) vidEl.textContent = queued;
+  if (vidSub) vidSub.textContent = uploaded > 0 ? `${uploaded} uploaded total` : 'Run pipeline to start';
+
+  // ElevenLabs status
+  const elKey = localStorage.getItem('elApiKey');
+  const elEl = document.getElementById('dash-el-status');
+  const elSub = document.getElementById('dash-el-sub');
+  if (elEl) { elEl.textContent = elKey ? '✓' : '✗'; elEl.style.color = elKey ? 'var(--accent)' : 'var(--accent3)'; }
+  if (elSub) elSub.textContent = elKey ? 'connected · eleven_turbo_v2_5' : 'go to Settings to configure';
+
+  // YouTube status
+  const ytAuth = JSON.parse(localStorage.getItem('ytAuth') || '{}');
+  const ytEl = document.getElementById('dash-yt-status');
+  const ytSub = document.getElementById('dash-yt-sub');
+  const ytConnected = !!(ytAuth.refreshToken && ytAuth.clientId);
+  if (ytEl) { ytEl.textContent = ytConnected ? '✓' : '✗'; ytEl.style.color = ytConnected ? 'var(--accent)' : 'var(--accent3)'; }
+  if (ytSub) ytSub.textContent = ytConnected ? (ytAuth.channelTitle || 'DailyFeedin') + ' · connected' : 'go to Settings → YouTube OAuth';
+
+  // Next publish slot
+  const nextEl = document.getElementById('dash-next');
+  const nextSub = document.getElementById('dash-next-sub');
+  if (nextEl) {
+    const next = getNextPublishSlot();
+    nextEl.textContent = next.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'});
+    if (nextSub) nextSub.textContent = next.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'}) + ' EST';
+  }
+
+  // Dashboard queue list
+  const dashQueue = document.getElementById('dash-queue-list');
+  if (dashQueue) {
+    if (queue.length === 0) {
+      dashQueue.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text3);font-family:var(--font-mono);font-size:12px;">// No videos queued yet — run the pipeline to start</div>';
+    } else {
+      dashQueue.innerHTML = queue.slice(-5).reverse().map(v => {
+        const statusTag = v.status === 'uploaded' ? '<span class="tag tag-green">uploaded</span>'
+          : v.status === 'queued' ? '<span class="tag tag-amber">queued</span>'
+          : `<span class="tag tag-blue">${v.status}</span>`;
+        const pub = v.publishAt === 'immediate' ? 'Immediate' : new Date(v.publishAt).toLocaleString('en-US',{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'});
+        return `<div class="vq-row"><div class="vq-thumb" style="background:rgba(0,229,160,0.08);color:var(--accent);font-size:11px;font-family:var(--font-mono);">DF</div><div style="flex:1;"><div class="vq-title">${v.title}</div><div class="vq-meta">DailyFeedin · ${pub}</div></div>${statusTag}</div>`;
+      }).join('');
+    }
+  }
+}
+
+
 async function scrapeViral() {
   const btn = document.getElementById('viral-btn');
   btn.disabled = true;
@@ -2674,12 +3122,13 @@ async function scrapeViral() {
   const niche = document.getElementById('viral-niche').value;
   const region = document.getElementById('viral-region').value;
   const sortBy = document.getElementById('viral-sort').value;
+  const ytApiKey = document.getElementById('viral-yt-api-key')?.value.trim() || localStorage.getItem('ytDataApiKey') || '';
 
   try {
     const res = await fetch('/api/handler', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'viral_scrape', niche, region })
+      body: JSON.stringify({ action: 'viral_scrape', niche, region, yt_api_key: ytApiKey })
     });
 
     const raw = await res.text();
@@ -2827,22 +3276,33 @@ function useViralAsTopic(title) {
 window.addEventListener('load', () => {
   updateNextSlotDisplay();
   refreshQueue();
+  updateDashboard();
   setInterval(updateNextSlotDisplay, 30000);
+  setInterval(updateDashboard, 60000);
   restoreYTConnection();
   restoreELConfig();
+  initBrowserTTS();
+
+  // Restore YouTube Data API key (for viral scraper)
+  const ytDataKey = localStorage.getItem('ytDataApiKey');
+  if (ytDataKey) {
+    const el = document.getElementById('viral-yt-api-key');
+    if (el) el.value = ytDataKey;
+  }
+
   // Restore Pexels key
-  const pexelsKey=localStorage.getItem('pexelsApiKey');
-  if(pexelsKey){
-    const el=document.getElementById('pexels-api-key');
-    if(el) el.value=pexelsKey;
-    ['pexels-status-tag','pexels-int-status'].forEach(id=>{
-      const e=document.getElementById(id);
-      if(e){e.textContent='connected ✓';e.className='tag tag-green';}
+  const pexelsKey = localStorage.getItem('pexelsApiKey');
+  if (pexelsKey) {
+    const el = document.getElementById('pexels-api-key');
+    if (el) el.value = pexelsKey;
+    ['pexels-status-tag','pexels-int-status'].forEach(id => {
+      const e = document.getElementById(id);
+      if (e) { e.textContent = 'connected ✓'; e.className = 'tag tag-green'; }
     });
-    const testSection=document.getElementById('pexels-test-section');
-    if(testSection) testSection.style.display='block';
-    const saveBtn=document.getElementById('pexels-save-btn');
-    if(saveBtn) saveBtn.disabled=false;
+    const testSection = document.getElementById('pexels-test-section');
+    if (testSection) testSection.style.display = 'block';
+    const saveBtn = document.getElementById('pexels-save-btn');
+    if (saveBtn) saveBtn.disabled = false;
   }
 });
 
