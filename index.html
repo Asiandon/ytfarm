@@ -1847,25 +1847,33 @@ Output: One clear DALL·E 3 prompt in 2-3 sentences. Then one line: "Text overla
       localStorage.setItem('ytQueue', JSON.stringify(queue));
 
       setPipeStep('upload','done','scheduled ✓');
-      log('[00:51] ✓ Video metadata queued for YouTube upload!','bold');
+      log('[00:51] ✓ Video metadata queued!','bold');
       log(`[00:51] Auto-publish: ${mode==='scheduled'?'Scheduled for '+nextSlot.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'})+ ' EST':'Immediate'}`, 'bold');
-      log('[00:52] NOTE: Attach rendered video file to complete upload.','warn');
+      log('[00:52] → Click RENDER VIDEO to create your MP4 and upload it now.','info');
 
-      // Show publish confirmation in results
+      // Store metadata for renderer
+      window._pendingUpload = { videoTitle, desc, tags, categoryId, publishAt: mode==='scheduled'?publishAt:null, privacyStatus };
+
+      // Show publish confirmation + render button
       document.getElementById('res-upload-section').style.display='block';
       document.getElementById('res-upload-body').innerHTML=`
-        <div style="display:flex;flex-direction:column;gap:10px;">
-          <div style="display:flex;gap:10px;align-items:center;"><span class="tag tag-green">✓ queued</span><span style="font-size:13px;font-weight:500;">${videoTitle}</span></div>
-          <div style="font-size:12px;color:var(--text2);line-height:1.8;">
-            <div><span style="color:var(--text3);">Channel:</span> DailyFeedin</div>
-            <div><span style="color:var(--text3);">Publish:</span> ${mode==='scheduled'?nextSlot.toLocaleString('en-US',{weekday:'short',hour:'2-digit',minute:'2-digit',timeZoneName:'short'}):'Immediately on video ready'}</div>
-            <div><span style="color:var(--text3);">Category:</span> News & Politics</div>
-            <div><span style="color:var(--text3);">Privacy:</span> ${mode==='scheduled'?'Private until publish time':privacyStatus}</div>
-            <div><span style="color:var(--text3);">Tags:</span> ${tags.slice(0,5).join(', ')}...</div>
-            <div><span style="color:var(--text3);">Hashtags:</span> ${hashtags}</div>
+        <div style="display:flex;flex-direction:column;gap:12px;">
+          <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+            <span class="tag tag-green">✓ queued</span>
+            <span style="font-size:13px;font-weight:500;">${videoTitle}</span>
           </div>
-          <div style="background:rgba(255,184,48,0.08);border:1px solid rgba(255,184,48,0.2);border-radius:5px;padding:10px;font-size:11px;color:var(--amber);font-family:var(--font-mono);">
-            ⚠ Next step: Render your video file (ElevenLabs audio + Pexels footage) and call uploadVideoFile(videoBlob) to complete the upload to YouTube.
+          <div style="font-size:12px;color:var(--text2);line-height:1.9;">
+            <div><span style="color:var(--text3);">Publish:</span> ${mode==='scheduled'?nextSlot.toLocaleString('en-US',{weekday:'short',hour:'2-digit',minute:'2-digit',timeZoneName:'short'}):'Immediately'}</div>
+            <div><span style="color:var(--text3);">Category:</span> News & Politics &nbsp;|&nbsp; <span style="color:var(--text3);">Privacy:</span> ${mode==='scheduled'?'Private until publish time':privacyStatus}</div>
+            <div><span style="color:var(--text3);">Tags:</span> ${tags.slice(0,5).join(', ')}...</div>
+          </div>
+          <div style="background:rgba(0,229,160,0.07);border:1px solid rgba(0,229,160,0.25);border-radius:6px;padding:14px;">
+            <div style="font-family:var(--font-mono);font-size:10px;color:var(--accent);margin-bottom:10px;">STEP 2 — RENDER & UPLOAD VIDEO</div>
+            <div style="font-size:12px;color:var(--text2);margin-bottom:12px;">Click below to render a full news-style video in your browser (text + visuals + audio), then upload it directly to YouTube.</div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;">
+              <button class="btn btn-primary" style="font-size:13px;padding:10px 20px;" onclick="openVideoRenderer('${videoTitle.replace(/'/g,"\\'")}')">🎬 RENDER VIDEO IN BROWSER</button>
+              <button class="btn btn-ghost" onclick="document.querySelectorAll('.nav-item').forEach(n=>{if(n.textContent.includes('Video Queue'))n.click()})">📋 View Queue</button>
+            </div>
           </div>
         </div>`;
 
@@ -3261,7 +3269,332 @@ function useViralAsTopic(title) {
 }
 
 
-// Init on load
+// ============ VIDEO RENDERER ============
+
+let _renderedBlob = null;
+let _mediaRecorder = null;
+let _renderTopic = '';
+
+function openVideoRenderer(title) {
+  _renderTopic = title || '';
+  document.getElementById('vr-title').value = title || '';
+  // Auto-fill script from pipeline output
+  const pipeScript = document.getElementById('res-script-body')?.textContent || '';
+  if (pipeScript && pipeScript.length > 10) {
+    document.getElementById('vr-script').value = pipeScript;
+  }
+  document.getElementById('video-renderer-modal').style.display = 'block';
+  document.body.style.overflow = 'hidden';
+  previewFrame();
+}
+
+function closeVideoRenderer() {
+  document.getElementById('video-renderer-modal').style.display = 'none';
+  document.body.style.overflow = '';
+}
+
+// Draw a single news-style frame onto canvas
+function drawNewsFrame(ctx, W, H, text, headline, slideIndex, totalSlides, bgStyle, ticker) {
+  // Background
+  const bgColors = {
+    'dark-news': ['#0a0b0d', '#111318'],
+    'red-urgent': ['#1a0000', '#2d0505'],
+    'blue-clean': ['#000a1a', '#001428'],
+    'black-minimal': ['#000000', '#0d0d0d']
+  };
+  const accentColors = {
+    'dark-news': '#00e5a0', 'red-urgent': '#ff2020',
+    'blue-clean': '#0099ff', 'black-minimal': '#ffffff'
+  };
+  const [bg1, bg2] = bgColors[bgStyle] || bgColors['dark-news'];
+  const accent = accentColors[bgStyle] || '#00e5a0';
+
+  // Gradient background
+  const grad = ctx.createLinearGradient(0, 0, W, H);
+  grad.addColorStop(0, bg1); grad.addColorStop(1, bg2);
+  ctx.fillStyle = grad; ctx.fillRect(0, 0, W, H);
+
+  // Subtle grid pattern
+  ctx.strokeStyle = 'rgba(255,255,255,0.03)';
+  ctx.lineWidth = 1;
+  for (let x = 0; x < W; x += 60) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke(); }
+  for (let y = 0; y < H; y += 60) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke(); }
+
+  // Top bar
+  ctx.fillStyle = accent;
+  ctx.fillRect(0, 0, W, 6);
+
+  // BREAKING NEWS label
+  const badgeW = 200, badgeH = 36, badgeX = 40, badgeY = 30;
+  ctx.fillStyle = accent;
+  ctx.beginPath(); ctx.roundRect(badgeX, badgeY, badgeW, badgeH, 4); ctx.fill();
+  ctx.fillStyle = '#000';
+  ctx.font = `bold ${W > 800 ? 16 : 12}px "Arial", sans-serif`;
+  ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+  ctx.fillText('🔴 BREAKING NEWS', badgeX + 12, badgeY + badgeH/2);
+
+  // Channel name top-right
+  ctx.fillStyle = 'rgba(255,255,255,0.5)';
+  ctx.font = `${W > 800 ? 14 : 11}px "Arial", sans-serif`;
+  ctx.textAlign = 'right'; ctx.textBaseline = 'top';
+  ctx.fillText('DailyFeedin', W - 40, 36);
+
+  // Headline (large, centered)
+  if (headline) {
+    ctx.fillStyle = '#ffffff';
+    ctx.font = `bold ${W > 800 ? Math.min(36, Math.floor(W / headline.length * 1.2)) : 20}px "Arial", sans-serif`;
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    // Word wrap headline
+    const headWords = headline.toUpperCase().split(' ');
+    const headLines = []; let headLine = '';
+    const maxHeadW = W - 120;
+    ctx.font = `bold ${W > 800 ? 32 : 18}px "Arial", sans-serif`;
+    for (const word of headWords) {
+      const test = headLine ? headLine + ' ' + word : word;
+      if (ctx.measureText(test).width > maxHeadW && headLine) { headLines.push(headLine); headLine = word; }
+      else headLine = test;
+    }
+    if (headLine) headLines.push(headLine);
+    const lineH = W > 800 ? 42 : 26;
+    const startY = H * 0.32 - (headLines.length - 1) * lineH / 2;
+    headLines.forEach((hl, i) => { ctx.fillStyle = '#ffffff'; ctx.fillText(hl, W/2, startY + i * lineH); });
+  }
+
+  // Script text body
+  const bodyText = text || '';
+  const fontSize = W > 800 ? 22 : 15;
+  ctx.font = `${fontSize}px "Arial", sans-serif`;
+  ctx.fillStyle = 'rgba(255,255,255,0.85)';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+
+  // Word wrap body text
+  const words = bodyText.split(' ');
+  const lines = []; let line = '';
+  const maxW = W - 160;
+  for (const word of words) {
+    const test = line ? line + ' ' + word : word;
+    if (ctx.measureText(test).width > maxW && line) { lines.push(line); line = word; }
+    else line = test;
+  }
+  if (line) lines.push(line);
+  const maxLines = Math.floor((H * 0.35) / (fontSize + 8));
+  const visLines = lines.slice(0, maxLines);
+  const bodyStartY = H * 0.50;
+  visLines.forEach((l, i) => {
+    ctx.fillStyle = i === 0 ? '#ffffff' : 'rgba(255,255,255,0.75)';
+    ctx.fillText(l, W/2, bodyStartY + i * (fontSize + 8));
+  });
+
+  // Bottom ticker bar
+  const tickerH = W > 800 ? 52 : 36;
+  ctx.fillStyle = accent;
+  ctx.fillRect(0, H - tickerH, W, tickerH);
+  ctx.fillStyle = '#000';
+  ctx.font = `bold ${W > 800 ? 18 : 13}px "Arial", sans-serif`;
+  ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+  const tickerText = ticker || 'LIVE · BREAKING NEWS · DAILYFEEDIN · STAY INFORMED · SUBSCRIBE FOR UPDATES';
+  ctx.fillText('⚡ ' + tickerText, 20, H - tickerH/2);
+
+  // Slide counter dots
+  const dotY = H - tickerH - 20;
+  const dotSpacing = 16, dotR = 4;
+  const dotsStartX = W/2 - (totalSlides * dotSpacing)/2;
+  for (let i = 0; i < totalSlides; i++) {
+    ctx.beginPath();
+    ctx.arc(dotsStartX + i * dotSpacing, dotY, dotR, 0, Math.PI * 2);
+    ctx.fillStyle = i === slideIndex ? accent : 'rgba(255,255,255,0.3)';
+    ctx.fill();
+  }
+
+  // Accent side line
+  ctx.fillStyle = accent;
+  ctx.fillRect(0, H * 0.25, 4, H * 0.55);
+}
+
+function previewFrame() {
+  const canvas = document.getElementById('vr-canvas');
+  const ctx = canvas.getContext('2d');
+  const bgStyle = document.getElementById('vr-bg-style')?.value || 'dark-news';
+  const title = document.getElementById('vr-title')?.value || 'Breaking News';
+  const script = document.getElementById('vr-script')?.value || '';
+  // Show first slide
+  const sentences = script.match(/[^.!?\n]+[.!?\n]*/g) || [script.slice(0,200)];
+  const firstText = sentences[0]?.trim().slice(0, 180) || 'DailyFeedin — Breaking News';
+  drawNewsFrame(ctx, canvas.width, canvas.height, firstText, title, 0, Math.min(sentences.length, 8), bgStyle, '');
+}
+
+async function startRender() {
+  const canvas = document.getElementById('vr-canvas');
+  const ctx = canvas.getContext('2d');
+  const bgStyle = document.getElementById('vr-bg-style')?.value || 'dark-news';
+  const title = document.getElementById('vr-title')?.value || 'Breaking News';
+  const script = document.getElementById('vr-script')?.value || '';
+  const secPerSlide = parseInt(document.getElementById('vr-speed')?.value || '6');
+  const resVal = document.getElementById('vr-res')?.value || '1920x1080';
+  const [W, H] = resVal.split('x').map(Number);
+
+  if (!script || script.length < 10) {
+    document.getElementById('vr-status').textContent = '⚠ Add a script first (run the pipeline or paste text above).';
+    return;
+  }
+
+  // Split script into slides (one sentence per slide, max 12 slides)
+  const rawSentences = (script.match(/[^.!?\n]+[.!?\n]*/g) || [script]).map(s => s.trim()).filter(Boolean);
+  const slides = rawSentences.slice(0, 12);
+  const totalSlides = slides.length;
+  const FPS = 25;
+  const framesPerSlide = secPerSlide * FPS;
+  const totalFrames = framesPerSlide * totalSlides;
+
+  // Set canvas to full res
+  canvas.width = W; canvas.height = H;
+
+  // Setup MediaRecorder
+  const stream = canvas.captureStream(FPS);
+  const mimeType = MediaRecorder.isTypeSupported('video/webm;codecs=vp9') ? 'video/webm;codecs=vp9'
+    : MediaRecorder.isTypeSupported('video/webm') ? 'video/webm' : 'video/webm';
+  _mediaRecorder = new MediaRecorder(stream, { mimeType, videoBitsPerSecond: 4000000 });
+  const chunks = [];
+  _mediaRecorder.ondataavailable = e => { if (e.data.size > 0) chunks.push(e.data); };
+  _mediaRecorder.onstop = () => {
+    _renderedBlob = new Blob(chunks, { type: mimeType });
+    const sizeMB = (_renderedBlob.size / 1024 / 1024).toFixed(1);
+    document.getElementById('vr-progress-label').textContent = `✓ Render complete! ${sizeMB}MB · ${slides.length} slides · ${Math.round(totalFrames/FPS)}s`;
+    document.getElementById('vr-progress-bar').style.width = '100%';
+    document.getElementById('vr-render-btn').disabled = false;
+    document.getElementById('vr-render-btn').innerHTML = '🎬 RE-RENDER';
+    document.getElementById('vr-download-btn').style.display = 'inline-flex';
+    document.getElementById('vr-upload-btn').style.display = 'inline-flex';
+    document.getElementById('vr-status').innerHTML = `<span style="color:var(--accent);">✓ Ready! Download or upload directly to YouTube.</span>`;
+  };
+
+  // UI
+  document.getElementById('vr-render-btn').disabled = true;
+  document.getElementById('vr-render-btn').innerHTML = '<span class="spinner"></span> Rendering...';
+  document.getElementById('vr-download-btn').style.display = 'none';
+  document.getElementById('vr-upload-btn').style.display = 'none';
+  document.getElementById('vr-progress-wrap').style.display = 'block';
+  document.getElementById('vr-progress-label').textContent = 'Starting render...';
+  document.getElementById('vr-progress-bar').style.width = '0%';
+  document.getElementById('vr-status').textContent = '';
+
+  // Ticker text from title
+  const tickerText = `${title.toUpperCase()} · FOLLOW DAILYFEEDIN FOR MORE BREAKING NEWS · SUBSCRIBE NOW`;
+
+  _mediaRecorder.start(100); // collect data every 100ms
+
+  let frameNum = 0;
+  async function renderFrame() {
+    if (frameNum >= totalFrames) {
+      _mediaRecorder.stop();
+      return;
+    }
+    const slideIdx = Math.floor(frameNum / framesPerSlide);
+    const slideText = slides[slideIdx] || '';
+    drawNewsFrame(ctx, W, H, slideText, title, slideIdx, totalSlides, bgStyle, tickerText);
+
+    // Update progress
+    const pct = Math.round((frameNum / totalFrames) * 100);
+    document.getElementById('vr-progress-bar').style.width = pct + '%';
+    document.getElementById('vr-progress-label').textContent = `Rendering slide ${slideIdx + 1}/${totalSlides} — ${pct}%`;
+
+    frameNum++;
+    // Use requestAnimationFrame for smooth rendering without blocking UI
+    if (frameNum % 5 === 0) await new Promise(r => setTimeout(r, 0)); // yield to browser every 5 frames
+    requestAnimationFrame(renderFrame);
+  }
+  requestAnimationFrame(renderFrame);
+}
+
+function downloadRenderedVideo() {
+  if (!_renderedBlob) { alert('No video rendered yet.'); return; }
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(_renderedBlob);
+  const safeName = (_renderTopic || 'dailyfeedin-video').replace(/[^a-z0-9]/gi, '-').toLowerCase().slice(0, 60);
+  a.download = safeName + '.webm';
+  a.click();
+  document.getElementById('vr-status').innerHTML = '<span style="color:var(--accent);">✓ Download started! The file is a .webm — compatible with YouTube, VLC, and most editors.</span>';
+}
+
+async function uploadRenderedToYT() {
+  if (!_renderedBlob) { alert('Render the video first.'); return; }
+  const token = await getValidAccessToken();
+  if (!token) {
+    document.getElementById('vr-status').innerHTML = '<span style="color:var(--accent3);">⚠ Not connected to YouTube. Go to Settings → YouTube OAuth → Connect Permanently.</span>';
+    return;
+  }
+  const btn = document.getElementById('vr-upload-btn');
+  btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Uploading...';
+  document.getElementById('vr-status').textContent = 'Starting YouTube upload...';
+
+  try {
+    const meta = window._pendingUpload || {};
+    const title = document.getElementById('vr-title').value || meta.videoTitle || 'DailyFeedin Breaking News';
+    const desc = meta.desc || 'Breaking news from DailyFeedin. Subscribe for daily updates.\n\n#BreakingNews #DailyFeedin #NewsToday';
+    const tags = meta.tags || ['breaking news', 'news today', 'dailyfeedin'];
+    const categoryId = meta.categoryId || '25';
+    const privacyStatus = meta.privacyStatus || 'public';
+    const publishAt = meta.publishAt || null;
+
+    // Step 1: Init resumable upload session
+    const initRes = await fetch(
+      `https://www.googleapis.com/upload/youtube/v3/videos?uploadType=resumable&part=snippet,status`,
+      {
+        method: 'POST',
+        headers: {
+          Authorization: 'Bearer ' + token,
+          'Content-Type': 'application/json',
+          'X-Upload-Content-Type': _renderedBlob.type,
+          'X-Upload-Content-Length': _renderedBlob.size
+        },
+        body: JSON.stringify({
+          snippet: { title: title.slice(0,100), description: desc, tags, categoryId, defaultLanguage:'en', defaultAudioLanguage:'en' },
+          status: { privacyStatus: publishAt ? 'private' : privacyStatus, selfDeclaredMadeForKids: false, ...(publishAt && { publishAt }) }
+        })
+      }
+    );
+
+    if (!initRes.ok) {
+      const err = await initRes.json().catch(()=>({}));
+      throw new Error(err?.error?.message || 'Upload init failed: ' + initRes.status);
+    }
+
+    const uploadUrl = initRes.headers.get('Location');
+    if (!uploadUrl) throw new Error('No upload URL returned from YouTube');
+
+    document.getElementById('vr-status').textContent = 'Uploading video to YouTube... (may take 1-3 minutes)';
+
+    // Step 2: Upload the blob
+    const uploadRes = await fetch(uploadUrl, {
+      method: 'PUT',
+      headers: { 'Content-Type': _renderedBlob.type, 'Content-Length': _renderedBlob.size },
+      body: _renderedBlob
+    });
+
+    if (!uploadRes.ok) {
+      const err = await uploadRes.json().catch(()=>({}));
+      throw new Error(err?.error?.message || 'Upload failed: ' + uploadRes.status);
+    }
+
+    const result = await uploadRes.json();
+    const videoId = result.id;
+    const ytUrl = `https://youtube.com/watch?v=${videoId}`;
+
+    document.getElementById('vr-status').innerHTML = `<span style="color:var(--accent);">✓ Uploaded! <a href="${ytUrl}" target="_blank" style="color:var(--accent);text-decoration:underline;">${ytUrl}</a></span>`;
+    btn.innerHTML = '✓ UPLOADED!';
+
+    // Update queue status
+    const queue = JSON.parse(localStorage.getItem('ytQueue')||'[]');
+    const last = queue.filter(v=>v.status==='queued').sort((a,b)=>b.id-a.id)[0];
+    if (last) { last.status = 'uploaded'; last.videoId = videoId; localStorage.setItem('ytQueue', JSON.stringify(queue)); refreshQueue(); updateDashboard(); }
+
+  } catch(e) {
+    document.getElementById('vr-status').innerHTML = `<span style="color:var(--accent3);">✗ Upload error: ${e.message}</span>`;
+    btn.disabled = false; btn.innerHTML = '▶ Upload to YouTube';
+  }
+}
+
+
 window.addEventListener('load', () => {
   updateNextSlotDisplay();
   refreshQueue();
@@ -3296,5 +3629,94 @@ window.addEventListener('load', () => {
 });
 
 </script>
+<!-- ============ VIDEO RENDERER MODAL ============ -->
+<div id="video-renderer-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:1000;overflow-y:auto;padding:24px;">
+  <div style="max-width:800px;margin:0 auto;background:var(--bg2);border:1px solid var(--border2);border-radius:12px;overflow:hidden;">
+
+    <!-- Header -->
+    <div style="display:flex;align-items:center;gap:12px;padding:16px 20px;background:var(--bg3);border-bottom:1px solid var(--border);">
+      <span style="font-size:18px;">🎬</span>
+      <div>
+        <div style="font-size:15px;font-weight:600;">Video Renderer</div>
+        <div style="font-size:11px;color:var(--text3);font-family:var(--font-mono);">// renders a news-style MP4 in your browser · no software needed</div>
+      </div>
+      <button onclick="closeVideoRenderer()" style="margin-left:auto;background:transparent;border:1px solid var(--border2);color:var(--text2);border-radius:4px;padding:4px 10px;cursor:pointer;font-size:13px;">✕ Close</button>
+    </div>
+
+    <div style="padding:20px;display:flex;flex-direction:column;gap:16px;">
+
+      <!-- Video title -->
+      <div>
+        <label style="font-size:12px;color:var(--text2);font-family:var(--font-mono);display:block;margin-bottom:5px;">VIDEO TITLE</label>
+        <input type="text" id="vr-title" style="width:100%;background:var(--bg3);border:1px solid var(--border2);border-radius:5px;color:var(--text);padding:9px 12px;font-size:13px;outline:none;" placeholder="Your video title...">
+      </div>
+
+      <!-- Settings row -->
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;">
+        <div>
+          <label style="font-size:11px;color:var(--text2);font-family:var(--font-mono);display:block;margin-bottom:5px;">BACKGROUND STYLE</label>
+          <select id="vr-bg-style" style="width:100%;background:var(--bg3);border:1px solid var(--border2);border-radius:5px;color:var(--text);padding:8px 10px;font-size:12px;">
+            <option value="dark-news">Dark News (recommended)</option>
+            <option value="red-urgent">Red Urgent Breaking</option>
+            <option value="blue-clean">Blue Clean Professional</option>
+            <option value="black-minimal">Black Minimal</option>
+          </select>
+        </div>
+        <div>
+          <label style="font-size:11px;color:var(--text2);font-family:var(--font-mono);display:block;margin-bottom:5px;">DURATION / SLIDE SPEED</label>
+          <select id="vr-speed" style="width:100%;background:var(--bg3);border:1px solid var(--border2);border-radius:5px;color:var(--text);padding:8px 10px;font-size:12px;">
+            <option value="4">4 sec/slide (fast)</option>
+            <option value="6" selected>6 sec/slide (normal)</option>
+            <option value="8">8 sec/slide (slow)</option>
+          </select>
+        </div>
+        <div>
+          <label style="font-size:11px;color:var(--text2);font-family:var(--font-mono);display:block;margin-bottom:5px;">RESOLUTION</label>
+          <select id="vr-res" style="width:100%;background:var(--bg3);border:1px solid var(--border2);border-radius:5px;color:var(--text);padding:8px 10px;font-size:12px;">
+            <option value="1280x720">720p (faster)</option>
+            <option value="1920x1080" selected>1080p (best)</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Script -->
+      <div>
+        <label style="font-size:11px;color:var(--text2);font-family:var(--font-mono);display:block;margin-bottom:5px;">SCRIPT (auto-filled from pipeline)</label>
+        <textarea id="vr-script" style="width:100%;min-height:120px;background:var(--bg3);border:1px solid var(--border2);border-radius:5px;color:var(--text);padding:9px 12px;font-size:12px;line-height:1.7;resize:vertical;outline:none;" placeholder="Your script will appear here after running the pipeline..."></textarea>
+      </div>
+
+      <!-- Preview canvas -->
+      <div>
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
+          <label style="font-size:11px;color:var(--text2);font-family:var(--font-mono);">PREVIEW</label>
+          <button onclick="previewFrame()" style="background:transparent;border:1px solid var(--border2);color:var(--text2);border-radius:4px;padding:3px 10px;cursor:pointer;font-size:11px;font-family:var(--font-mono);">↺ Preview Frame</button>
+        </div>
+        <canvas id="vr-canvas" width="640" height="360" style="width:100%;border-radius:6px;border:1px solid var(--border);background:#000;display:block;"></canvas>
+      </div>
+
+      <!-- Progress -->
+      <div id="vr-progress-wrap" style="display:none;">
+        <div style="font-family:var(--font-mono);font-size:11px;color:var(--text3);margin-bottom:6px;" id="vr-progress-label">Rendering...</div>
+        <div style="background:var(--bg4);border-radius:4px;height:6px;overflow:hidden;">
+          <div id="vr-progress-bar" style="height:100%;background:var(--accent);border-radius:4px;width:0%;transition:width 0.3s;"></div>
+        </div>
+      </div>
+
+      <!-- Action buttons -->
+      <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
+        <button id="vr-render-btn" class="btn btn-primary" style="font-size:13px;padding:10px 24px;" onclick="startRender()">🎬 RENDER VIDEO</button>
+        <button id="vr-download-btn" class="btn btn-ghost" style="display:none;" onclick="downloadRenderedVideo()">⬇ Download MP4</button>
+        <button id="vr-upload-btn" class="btn btn-ghost" style="display:none;border-color:rgba(255,0,0,0.4);color:#ff4444;" onclick="uploadRenderedToYT()">▶ Upload to YouTube</button>
+        <div id="vr-status" style="font-family:var(--font-mono);font-size:12px;color:var(--text3);"></div>
+      </div>
+
+      <!-- How it works note -->
+      <div style="background:var(--bg3);border-radius:6px;padding:12px;font-size:11px;color:var(--text3);font-family:var(--font-mono);line-height:1.9;">
+        <span style="color:var(--accent);">HOW IT WORKS:</span> The renderer uses your browser's Canvas API to create a slideshow-style news video — script text on styled backgrounds, animated headlines, breaking news ticker. No external software needed. For voiceover audio embedded in the video, enable Browser TTS or add ElevenLabs. The final file is a real .webm/mp4 you can download or upload directly to YouTube.
+      </div>
+    </div>
+  </div>
+</div>
+
 </body>
 </html>
