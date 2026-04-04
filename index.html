@@ -422,7 +422,7 @@
         <div class="result-card" style="margin-top:12px;border-color:rgba(155,109,255,0.25);" id="res-voice-card">
           <div class="result-card-header" style="background:rgba(155,109,255,0.05);">
             <span class="step-badge done" style="background:rgba(155,109,255,0.2);border-color:var(--purple);color:var(--purple);">✓</span>
-            <span style="font-weight:600;font-size:13px;">🔊 Voiceover Audio — ElevenLabs</span>
+            <span style="font-weight:600;font-size:13px;">🔊 Voiceover Audio</span>
             <span id="el-audio-status" class="tag tag-amber" style="margin-left:auto;">generating...</span>
           </div>
           <div class="result-card-body" id="res-voice-body">
@@ -1649,33 +1649,52 @@ Output: One clear DALL·E 3 prompt in 2-3 sentences. Then one line: "Text overla
   setPipeStep('thumb','done','done ✓');
   log('[00:37] Thumbnail prompt ready','bold');
 
-  // STEP 5: VOICEOVER — REAL ELEVENLABS AUDIO
+  // STEP 5: VOICEOVER
   setPipeStep('voice','running','generating...');
-  log('[00:38] Sending script to ElevenLabs TTS...','info');
   document.getElementById('el-audio-status').textContent='generating...';
   document.getElementById('el-audio-status').className='tag tag-amber';
-  document.getElementById('el-audio-msg').textContent='Generating voiceover audio...';
+  document.getElementById('el-audio-msg').textContent='Generating voiceover...';
   document.getElementById('el-audio-player').style.display='none';
 
+  const cleanScript = script
+    .replace(/\[B-ROLL:[^\]]+\]/gi,'')
+    .replace(/[🔴📌📣🎬🎯⏱️═]+/g,'')
+    .replace(/\n{3,}/g,'\n\n')
+    .trim();
+
+  const useBrowserTTS = localStorage.getItem('browserTTSMode') === 'true';
   const elKey = localStorage.getItem('elApiKey');
-  const elVoiceId = localStorage.getItem('elVoiceId') || 'pNInz6obpgDQGcFmaJgB';
+  const elVoiceId = localStorage.getItem('elVoiceId') || 'nPczCjzI2devNBz1zQrb'; // Brian — free tier
   const elModelId = localStorage.getItem('elModelId') || 'eleven_turbo_v2_5';
   const elStability = parseFloat(localStorage.getItem('elStability')||'0.5');
   const elSimilarity = parseFloat(localStorage.getItem('elSimilarity')||'0.75');
   const elStyleVal = parseFloat(localStorage.getItem('elStyle')||'0.0');
 
-  if(elKey){
+  if (useBrowserTTS) {
+    // ── BROWSER TTS (FREE, always works) ──
+    log('[00:38] Browser TTS mode active — speaking script...','info');
+    document.getElementById('el-audio-msg').innerHTML='<span style="color:var(--accent);">🔊 Speaking via Browser TTS (free)...</span>';
+    document.getElementById('el-audio-status').textContent='speaking...';
+    document.getElementById('el-audio-status').className='tag tag-blue';
     try {
-      // Clean script — remove B-roll notes and emoji headers for clean TTS
-      const cleanScript = script
-        .replace(/\[B-ROLL:[^\]]+\]/gi,'')
-        .replace(/[🔴📌📣🎬🎯⏱️═]+/g,'')
-        .replace(/\n{3,}/g,'\n\n')
-        .trim();
+      await speakWithBrowserTTS(cleanScript.slice(0, 3000));
+      document.getElementById('el-audio-msg').innerHTML='<span style="color:var(--accent);">✓ Browser TTS complete. <span style="color:var(--text3);">Tip: Browser TTS cannot export as MP3 — add a free ElevenLabs key with a built-in voice (Brian/George) for downloadable audio.</span></span>';
+      document.getElementById('el-audio-status').textContent='✓ done';
+      document.getElementById('el-audio-status').className='tag tag-green';
+      setPipeStep('voice','done','browser tts ✓');
+      log('[00:45] ✓ Browser TTS complete','bold');
+    } catch(e) {
+      document.getElementById('el-audio-msg').innerHTML='<span style="color:var(--amber);">⚠ Browser TTS unavailable in this browser. Try Chrome or Edge.</span>';
+      setPipeStep('voice','done','skipped');
+      log('[00:38] Browser TTS failed — try Chrome or Edge','warn');
+    }
 
-      log('[00:39] Script cleaned for TTS ('+cleanScript.split(' ').length+' words)','dim');
-      log('[00:40] Calling ElevenLabs API...','info');
-
+  } else if (elKey) {
+    // ── ELEVENLABS (optional, free built-in voices only) ──
+    log('[00:38] ElevenLabs TTS — sending script...','info');
+    log('[00:39] Script cleaned for TTS ('+cleanScript.split(' ').length+' words)','dim');
+    log('[00:40] Calling ElevenLabs API (voice: '+elVoiceId+')...','info');
+    try {
       const elRes = await fetch('/api/handler', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -1685,96 +1704,66 @@ Output: One clear DALL·E 3 prompt in 2-3 sentences. Then one line: "Text overla
           voice_id: elVoiceId,
           model_id: elModelId,
           text: cleanScript.slice(0, 5000),
-          voice_settings: {
-            stability: elStability,
-            similarity_boost: elSimilarity,
-            style: elStyleVal,
-            use_speaker_boost: true
-          }
+          voice_settings: { stability: elStability, similarity_boost: elSimilarity, style: elStyleVal, use_speaker_boost: true }
         })
       });
+      const ttsRaw = await elRes.text();
+      const ttsData = ttsRaw ? JSON.parse(ttsRaw) : {};
 
-      if(elRes.ok){
-        const ttsRaw = await elRes.text();
-        const ttsData = ttsRaw ? JSON.parse(ttsRaw) : {};
-        if(ttsData.audio_base64){
-          // Convert base64 → blob → audio URL
-          const binary=atob(ttsData.audio_base64);
-          const bytes=new Uint8Array(binary.length);
-          for(let i=0;i<binary.length;i++) bytes[i]=binary.charCodeAt(i);
-          const audioBlob=new Blob([bytes],{type:'audio/mpeg'});
-          const audioUrl=URL.createObjectURL(audioBlob);
-        const audioEl = document.getElementById('audio-player');
-        audioEl.src = audioUrl;
-
-        // Store blob for download
-        window._lastAudioBlob = audioBlob;
-        window._lastAudioTopic = topic;
-
-        // Show player
+      if (ttsData.audio_base64) {
+        const binary=atob(ttsData.audio_base64);
+        const bytes=new Uint8Array(binary.length);
+        for(let i=0;i<binary.length;i++) bytes[i]=binary.charCodeAt(i);
+        const audioBlob=new Blob([bytes],{type:'audio/mpeg'});
+        const audioUrl=URL.createObjectURL(audioBlob);
+        document.getElementById('audio-player').src=audioUrl;
+        window._lastAudioBlob=audioBlob;
+        window._lastAudioTopic=topic;
         document.getElementById('el-audio-player').style.display='block';
         document.getElementById('el-audio-msg').textContent='';
         document.getElementById('el-audio-status').textContent='✓ ready';
         document.getElementById('el-audio-status').className='tag tag-green';
-
-        // Estimate duration
-        const estSecs = Math.round(cleanScript.split(' ').length / 2.5);
-        const mins = Math.floor(estSecs/60);
-        const secs = estSecs%60;
-        document.getElementById('el-audio-meta').textContent=`~${mins}:${String(secs).padStart(2,'0')} · ${Math.round(audioBlob.size/1024)}KB`;
-
+        const estSecs=Math.round(cleanScript.split(' ').length/2.5);
+        document.getElementById('el-audio-meta').textContent=`~${Math.floor(estSecs/60)}:${String(estSecs%60).padStart(2,'0')} · ${Math.round(audioBlob.size/1024)}KB`;
         setPipeStep('voice','done','done ✓');
-        log('[00:52] ✓ Voiceover generated! '+Math.round(audioBlob.size/1024)+'KB MP3 ready','bold');
-        log('[00:52] Press Play to preview or Download MP3','dim');
-        } else {
-          const errMsg = ttsData.error || 'Unknown TTS error';
-          document.getElementById('el-audio-msg').innerHTML=`<span style="color:var(--accent3);">✗ ElevenLabs error: ${errMsg}</span>`;
-          document.getElementById('el-audio-status').textContent='error';
-          document.getElementById('el-audio-status').className='tag tag-red';
-          setPipeStep('voice','error','error');
-          log('[ERROR] ElevenLabs: '+errMsg,'err');
-        }
+        log('[00:52] ✓ ElevenLabs voiceover ready — '+Math.round(audioBlob.size/1024)+'KB','bold');
       } else {
-        const errData = await elRes.json().catch(()=>({}));
-        const errMsg = errData?.error || elRes.statusText;
-        document.getElementById('el-audio-msg').innerHTML=`<span style="color:var(--accent3);">✗ ElevenLabs error: ${errMsg}</span>`;
-        document.getElementById('el-audio-status').textContent='error';
-        document.getElementById('el-audio-status').className='tag tag-red';
-        setPipeStep('voice','error','error');
-        log('[ERROR] ElevenLabs: '+errMsg,'err');
+        // ElevenLabs failed — auto-fallback to Browser TTS
+        const errMsg = ttsData.error || 'TTS failed';
+        log('[WARN] ElevenLabs error: '+errMsg,'warn');
+        log('[00:41] Falling back to Browser TTS automatically...','info');
+        document.getElementById('el-audio-msg').innerHTML=`<span style="color:var(--amber);">⚠ ElevenLabs: ${errMsg}<br>Auto-switching to Browser TTS...</span>`;
+        try {
+          await speakWithBrowserTTS(cleanScript.slice(0,3000));
+          document.getElementById('el-audio-msg').innerHTML=`<span style="color:var(--accent);">✓ Browser TTS fallback complete. <span style="color:var(--text3);">Fix: In Settings → use a FREE built-in ElevenLabs voice (Brian, George, etc.) not Rachel/Adam.</span></span>`;
+          document.getElementById('el-audio-status').textContent='✓ fallback';
+          document.getElementById('el-audio-status').className='tag tag-green';
+          setPipeStep('voice','done','fallback ✓');
+          log('[00:45] ✓ Browser TTS fallback complete','bold');
+        } catch {
+          document.getElementById('el-audio-status').textContent='el error';
+          document.getElementById('el-audio-status').className='tag tag-amber';
+          setPipeStep('voice','done','skipped');
+        }
       }
-    } catch(e){
-      document.getElementById('el-audio-msg').innerHTML=`<span style="color:var(--accent3);">✗ Network error: ${e.message}</span>`;
-      setPipeStep('voice','error','failed');
-      log('[ERROR] Voiceover failed: '+e.message,'err');
+    } catch(e) {
+      log('[WARN] ElevenLabs network error: '+e.message+' — using Browser TTS','warn');
+      try { await speakWithBrowserTTS(cleanScript.slice(0,3000)); } catch {}
+      setPipeStep('voice','done','fallback ✓');
     }
-  } else if (localStorage.getItem('browserTTSMode') === 'true') {
-    // Browser TTS fallback — free, no account needed
-    log('[00:38] Using Browser TTS (free)...','info');
-    document.getElementById('el-audio-msg').innerHTML='<span style="color:var(--text3);">🔊 Playing via Browser TTS...</span>';
-    document.getElementById('el-audio-status').textContent='browser tts';
-    document.getElementById('el-audio-status').className='tag tag-blue';
 
-    const cleanScript2 = script.replace(/\[B-ROLL:[^\]]+\]/gi,'').replace(/[🔴📌📣🎬🎯⏱️═]+/g,'').replace(/\n{3,}/g,'\n\n').trim();
-    await speakWithBrowserTTS(cleanScript2.slice(0, 3000));
-
-    document.getElementById('el-audio-msg').innerHTML='<span style="color:var(--accent);">✓ Browser TTS played. Note: Browser TTS cannot be downloaded as MP3 — use ElevenLabs for downloadable audio.</span>';
-    document.getElementById('el-audio-status').textContent='✓ played';
-    document.getElementById('el-audio-status').className='tag tag-green';
-    setPipeStep('voice','done','browser tts ✓');
-    log('[00:45] ✓ Browser TTS complete','bold');
   } else {
-    // No TTS configured at all
+    // ── NO TTS CONFIGURED ──
     document.getElementById('el-audio-msg').innerHTML=`
       <div style="color:var(--amber);margin-bottom:8px;">⚠ No voiceover configured</div>
       <div style="color:var(--text2);line-height:1.8;">
-        <strong>Option A (100% free):</strong> Go to <strong>Settings → ElevenLabs TTS → Browser TTS</strong> → click USE BROWSER TTS.<br>
-        <strong>Option B (free account):</strong> Get a free ElevenLabs key at <span style="color:var(--purple);">elevenlabs.io</span> → use only built-in voices (Brian, George, etc.)
+        <strong>Free option:</strong> Go to <strong>Settings → TTS → click USE BROWSER TTS</strong> (free, no account).<br>
+        <strong>Better quality:</strong> Add a free ElevenLabs key → use built-in voice <strong>Brian</strong> or <strong>George</strong> (not Rachel/Adam).
       </div>`;
     document.getElementById('el-audio-status').textContent='not configured';
     document.getElementById('el-audio-status').className='tag tag-amber';
     setPipeStep('voice','done','skipped');
-    log('[00:38] No TTS — enable Browser TTS in Settings (free) or add ElevenLabs key','warn');
+    log('[00:38] No TTS — enable Browser TTS in Settings or add ElevenLabs key','warn');
   }
 
   // STEP 6: UPLOAD TO YOUTUBE
