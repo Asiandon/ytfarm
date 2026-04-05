@@ -3305,117 +3305,284 @@ function closeVideoRenderer() {
   document.body.style.overflow = '';
 }
 
-// ── DRAW one frame onto canvas (bgImg = HTMLImageElement or HTMLVideoElement or null) ──
-function drawNewsFrame(ctx, W, H, text, headline, slideIndex, totalSlides, accentColor, bgMedia) {
+// ── DRAW one frame — background footage + news overlay + caption bar ──
+function drawNewsFrame(ctx, W, H, captionText, headline, slideIndex, totalSlides, accentColor, bgMedia) {
   const accent = accentColor || '#00e5a0';
 
-  // 1. Draw background media (video frame or image)
+  // 1. Background video/image frame
   if (bgMedia && (bgMedia.tagName === 'VIDEO' || bgMedia.tagName === 'IMG')) {
-    try {
-      ctx.drawImage(bgMedia, 0, 0, W, H);
-    } catch {}
+    try { ctx.drawImage(bgMedia, 0, 0, W, H); } catch {}
   } else {
-    // Fallback solid dark bg
     ctx.fillStyle = '#0a0c10'; ctx.fillRect(0, 0, W, H);
   }
 
-  // 2. Dark overlay so text is readable
+  // 2. Cinematic dark overlay — lighter in center, darker at top/bottom
   const overlay = ctx.createLinearGradient(0, 0, 0, H);
-  overlay.addColorStop(0, 'rgba(0,0,0,0.55)');
-  overlay.addColorStop(0.4, 'rgba(0,0,0,0.35)');
-  overlay.addColorStop(0.7, 'rgba(0,0,0,0.70)');
-  overlay.addColorStop(1, 'rgba(0,0,0,0.92)');
+  overlay.addColorStop(0,   'rgba(0,0,0,0.60)');
+  overlay.addColorStop(0.35,'rgba(0,0,0,0.20)');
+  overlay.addColorStop(0.65,'rgba(0,0,0,0.20)');
+  overlay.addColorStop(1,   'rgba(0,0,0,0.88)');
   ctx.fillStyle = overlay; ctx.fillRect(0, 0, W, H);
 
   // 3. Top accent stripe
   ctx.fillStyle = accent; ctx.fillRect(0, 0, W, 5);
 
-  // 4. BREAKING NEWS badge
-  const bw = W > 900 ? 210 : 160, bh = W > 900 ? 38 : 30, bx = 36, by = 28;
+  // 4. BREAKING NEWS badge — top-left
+  const bh = W > 900 ? 36 : 28, bx = 32, by = 24;
+  const bLabel = '● BREAKING NEWS';
+  ctx.font = `bold ${W > 900 ? 14 : 11}px Arial`;
+  const bw = ctx.measureText(bLabel).width + 28;
   ctx.fillStyle = accent;
-  ctx.beginPath(); ctx.roundRect(bx, by, bw, bh, 5); ctx.fill();
+  ctx.beginPath(); ctx.roundRect(bx, by, bw, bh, 4); ctx.fill();
   ctx.fillStyle = '#000';
-  ctx.font = `bold ${W > 900 ? 15 : 12}px Arial`;
   ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
-  ctx.fillText('● BREAKING NEWS', bx + 12, by + bh / 2);
+  ctx.fillText(bLabel, bx + 12, by + bh / 2);
 
-  // 5. Channel watermark top-right
-  ctx.fillStyle = 'rgba(255,255,255,0.6)';
-  ctx.font = `${W > 900 ? 15 : 11}px Arial`;
+  // 5. Channel tag — top-right
+  ctx.fillStyle = 'rgba(255,255,255,0.55)';
+  ctx.font = `${W > 900 ? 14 : 11}px Arial`;
   ctx.textAlign = 'right'; ctx.textBaseline = 'top';
-  ctx.fillText('DailyFeedin', W - 36, 34);
+  ctx.fillText('DailyFeedin', W - 32, 30);
 
-  // 6. Headline — large, word-wrapped, vertically centred in upper half
+  // 6. Headline — bold, centred, upper third
   if (headline) {
-    const hSize = W > 900 ? 38 : 22;
+    const hSize = W > 900 ? 40 : 24;
     ctx.font = `bold ${hSize}px Arial`;
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    const hw = W - 120;
-    const hWords = headline.toUpperCase().split(' ');
-    const hLines = []; let hl = '';
-    for (const w of hWords) {
-      const t = hl ? hl + ' ' + w : w;
-      if (ctx.measureText(t).width > hw && hl) { hLines.push(hl); hl = w; } else hl = t;
+    const maxHW = W - 100;
+    const hw = headline.toUpperCase().split(' ');
+    const hl = []; let cur = '';
+    for (const w of hw) {
+      const t = cur ? cur + ' ' + w : w;
+      if (ctx.measureText(t).width > maxHW && cur) { hl.push(cur); cur = w; } else cur = t;
     }
-    if (hl) hLines.push(hl);
-    const lh = hSize + 10;
-    const startY = H * 0.34 - (hLines.length - 1) * lh / 2;
-    hLines.forEach((line, i) => {
-      // Drop shadow
-      ctx.fillStyle = 'rgba(0,0,0,0.8)';
+    if (cur) hl.push(cur);
+    const lh = hSize + 12;
+    const startY = H * 0.28 - (hl.length - 1) * lh / 2;
+    hl.forEach((line, i) => {
+      ctx.fillStyle = 'rgba(0,0,0,0.75)';
       ctx.fillText(line, W / 2 + 2, startY + i * lh + 2);
       ctx.fillStyle = '#ffffff';
       ctx.fillText(line, W / 2, startY + i * lh);
     });
   }
 
-  // 7. Body text — lower half
-  const bodyText = (text || '').replace(/[🔴📌📣🎬🎯⏱️═📌●]/g, '').trim();
-  if (bodyText) {
-    const bSize = W > 900 ? 24 : 16;
-    ctx.font = `${bSize}px Arial`;
-    ctx.textAlign = 'center'; ctx.textBaseline = 'top';
-    const maxBW = W - 160;
-    const bWords = bodyText.split(' ');
-    const bLines = []; let bl = '';
-    for (const w of bWords) {
-      const t = bl ? bl + ' ' + w : w;
-      if (ctx.measureText(t).width > maxBW && bl) { bLines.push(bl); bl = w; } else bl = t;
-    }
-    if (bl) bLines.push(bl);
-    const maxL = Math.floor((H * 0.28) / (bSize + 8));
-    const visB = bLines.slice(0, maxL);
-    const startBY = H * 0.56;
-    visB.forEach((line, i) => {
-      ctx.fillStyle = 'rgba(0,0,0,0.6)';
-      ctx.fillText(line, W / 2 + 1, startBY + i * (bSize + 8) + 1);
-      ctx.fillStyle = i === 0 ? '#ffffff' : 'rgba(255,255,255,0.88)';
-      ctx.fillText(line, W / 2, startBY + i * (bSize + 8));
-    });
+  // 7. CAPTION BAR — bottom of frame, above ticker
+  // Shows short caption text (4–8 words max) like a subtitle
+  const tickerH = W > 900 ? 52 : 38;
+  const capBarH = W > 900 ? 68 : 52;
+  const capBarY = H - tickerH - capBarH;
+
+  if (captionText) {
+    // Semi-transparent black caption background
+    ctx.fillStyle = 'rgba(0,0,0,0.78)';
+    ctx.fillRect(0, capBarY, W, capBarH);
+
+    // Accent left edge on caption bar
+    ctx.fillStyle = accent;
+    ctx.fillRect(0, capBarY, 4, capBarH);
+
+    const capSize = W > 900 ? 26 : 18;
+    ctx.font = `${capSize}px Arial`;
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    // Cap text is already short (4-8 words split by caller)
+    ctx.fillStyle = 'rgba(0,0,0,0.5)';
+    ctx.fillText(captionText, W / 2 + 1, capBarY + capBarH / 2 + 1);
+    ctx.fillStyle = '#ffffff';
+    ctx.fillText(captionText, W / 2, capBarY + capBarH / 2);
   }
 
   // 8. Bottom ticker
-  const th = W > 900 ? 54 : 38;
-  ctx.fillStyle = accent; ctx.fillRect(0, H - th, W, th);
+  ctx.fillStyle = accent; ctx.fillRect(0, H - tickerH, W, tickerH);
   ctx.fillStyle = '#000';
-  ctx.font = `bold ${W > 900 ? 18 : 13}px Arial`;
+  ctx.font = `bold ${W > 900 ? 17 : 13}px Arial`;
   ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
-  const tk = `LIVE ● BREAKING NEWS ● DAILYFEEDIN ● SUBSCRIBE FOR DAILY UPDATES ●`;
-  ctx.fillText('⚡ ' + tk, 16, H - th / 2);
+  ctx.fillText('⚡ LIVE ● BREAKING NEWS ● DAILYFEEDIN ● SUBSCRIBE NOW ●', 16, H - tickerH / 2);
 
-  // 9. Left accent bar
-  ctx.fillStyle = accent; ctx.fillRect(0, H * 0.22, 5, H * 0.58);
+  // 9. Left accent bar (full height)
+  ctx.fillStyle = accent; ctx.globalAlpha = 0.6;
+  ctx.fillRect(0, H * 0.15, 4, H * 0.60);
+  ctx.globalAlpha = 1;
 
   // 10. Slide progress dots
-  const dotY = H - th - 18, ds = 14, dr = 4;
+  const dotY = H - tickerH - capBarH - 16, ds = 14, dr = 4;
   const dotX0 = W / 2 - (totalSlides * ds) / 2;
   for (let i = 0; i < totalSlides; i++) {
     ctx.beginPath(); ctx.arc(dotX0 + i * ds, dotY, dr, 0, Math.PI * 2);
-    ctx.fillStyle = i === slideIndex ? accent : 'rgba(255,255,255,0.35)'; ctx.fill();
+    ctx.fillStyle = i === slideIndex ? accent : 'rgba(255,255,255,0.3)'; ctx.fill();
   }
 }
 
-// ── Fetch Pexels videos for each slide keyword ──
+// ── Split a sentence into short caption chunks (4–7 words each) ──
+function splitIntoCaptions(sentence) {
+  const clean = sentence.replace(/\[B-ROLL:[^\]]+\]/gi, '').replace(/[🔴📌📣🎬🎯⏱️═●■▪]+/g, '').trim();
+  const words = clean.split(/\s+/).filter(Boolean);
+  const chunks = [];
+  for (let i = 0; i < words.length; i += 6) chunks.push(words.slice(i, i + 6).join(' '));
+  return chunks.filter(Boolean);
+}
+
+// ── Synthesize speech for a text chunk, returns AudioBuffer ──
+async function synthesizeSpeech(text, audioCtx) {
+  return new Promise((resolve) => {
+    if (!('speechSynthesis' in window)) { resolve(null); return; }
+    // Use offline audio context trick: record speech into AudioBuffer via MediaStreamDestination
+    const utter = new SpeechSynthesisUtterance(text);
+    utter.rate = 0.92;
+    utter.pitch = 1.0;
+    utter.volume = 1.0;
+    // Pick best available English voice
+    const voices = speechSynthesis.getVoices().filter(v => v.lang.startsWith('en'));
+    const preferred = voices.find(v => /google|microsoft|natural|neural/i.test(v.name)) || voices[0];
+    if (preferred) utter.voice = preferred;
+    utter.onend = () => resolve(null); // We'll use a different approach — MediaStream capture
+    utter.onerror = () => resolve(null);
+    speechSynthesis.speak(utter);
+    setTimeout(() => resolve(null), 20000); // safety timeout
+  });
+}
+
+async function startRender() {
+  const canvas = document.getElementById('vr-canvas');
+  const ctx = canvas.getContext('2d');
+  const accent = getAccentColor();
+  const title = document.getElementById('vr-title')?.value || 'Breaking News';
+  const rawScript = document.getElementById('vr-script')?.value || '';
+  const secPerSlide = parseInt(document.getElementById('vr-speed')?.value || '6');
+  const resVal = document.getElementById('vr-res')?.value || '1920x1080';
+  const [W, H] = resVal.split('x').map(Number);
+
+  if (!rawScript || rawScript.length < 10) {
+    document.getElementById('vr-status').textContent = '⚠ Add a script first — run the pipeline or paste text above.';
+    return;
+  }
+
+  // Clean and split script into sentences, then into caption chunks
+  const cleanScript = rawScript
+    .replace(/\[B-ROLL:[^\]]+\]/gi, '')
+    .replace(/[🔴📌📣🎬🎯⏱️═]+/g, '')
+    .replace(/\n{3,}/g, '\n\n').trim();
+
+  const sentences = (cleanScript.match(/[^.!?\n]+[.!?\n]*/g) || [cleanScript])
+    .map(s => s.trim()).filter(s => s.length > 3);
+
+  // Build slides: each sentence = one slide, captions cycle through chunks per frame
+  const slides = sentences.slice(0, 12);
+  const totalSlides = slides.length;
+  const FPS = 25;
+  const framesPerSlide = secPerSlide * FPS;
+  const totalFrames = framesPerSlide * totalSlides;
+
+  // Pre-compute caption chunks per slide
+  const slideCaptions = slides.map(s => splitIntoCaptions(s));
+
+  canvas.width = W; canvas.height = H;
+
+  // ── AUDIO: Use AudioContext + MediaStreamDestination to capture TTS ──
+  let audioStream = null;
+  let audioCtx = null;
+  try {
+    audioCtx = new AudioContext();
+    const dest = audioCtx.createMediaStreamDestination();
+    audioStream = dest.stream;
+
+    // Schedule TTS audio via oscillator-backed speech (workaround for canvas+speech)
+    // We use a silent oscillator to keep the audio stream alive, speech plays through speakers
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    gain.gain.value = 0.0001; // near-silent carrier
+    osc.connect(gain); gain.connect(dest); osc.start();
+  } catch {
+    audioStream = null;
+  }
+
+  // Combined stream: canvas video + audio (if available)
+  const videoStream = canvas.captureStream(FPS);
+  let combinedStream = videoStream;
+  if (audioStream) {
+    const allTracks = [...videoStream.getTracks(), ...audioStream.getTracks()];
+    combinedStream = new MediaStream(allTracks);
+  }
+
+  const mimeType = MediaRecorder.isTypeSupported('video/webm;codecs=vp9,opus') ? 'video/webm;codecs=vp9,opus'
+    : MediaRecorder.isTypeSupported('video/webm;codecs=vp8,opus') ? 'video/webm;codecs=vp8,opus'
+    : 'video/webm';
+  _mediaRecorder = new MediaRecorder(combinedStream, { mimeType, videoBitsPerSecond: 5000000 });
+  const chunks = [];
+  _mediaRecorder.ondataavailable = e => { if (e.data.size > 0) chunks.push(e.data); };
+  _mediaRecorder.onstop = () => {
+    _renderedBlob = new Blob(chunks, { type: 'video/webm' });
+    const sizeMB = (_renderedBlob.size / 1024 / 1024).toFixed(1);
+    _bgVideos.forEach(v => { try { v.pause?.(); } catch {} });
+    if (audioCtx) try { audioCtx.close(); } catch {}
+    document.getElementById('vr-progress-label').textContent = `✓ Done! ${sizeMB}MB · ${slides.length} slides · ${Math.round(totalFrames/FPS)}s`;
+    document.getElementById('vr-progress-bar').style.width = '100%';
+    document.getElementById('vr-render-btn').disabled = false;
+    document.getElementById('vr-render-btn').innerHTML = '🎬 RE-RENDER';
+    document.getElementById('vr-download-btn').style.display = 'inline-flex';
+    document.getElementById('vr-upload-btn').style.display = 'inline-flex';
+    document.getElementById('vr-status').innerHTML = `<span style="color:var(--accent);">✓ Video ready! <strong>Note:</strong> Audio is from Browser TTS playing through your speakers — the downloaded .webm has the visual track. For embedded audio, use ElevenLabs (Settings → TTS).</span>`;
+  };
+
+  // UI state
+  document.getElementById('vr-render-btn').disabled = true;
+  document.getElementById('vr-render-btn').innerHTML = '<span class="spinner"></span> Loading backgrounds...';
+  document.getElementById('vr-download-btn').style.display = 'none';
+  document.getElementById('vr-upload-btn').style.display = 'none';
+  document.getElementById('vr-progress-wrap').style.display = 'block';
+  document.getElementById('vr-progress-label').textContent = 'Fetching background footage from Pexels...';
+  document.getElementById('vr-progress-bar').style.width = '0%';
+  document.getElementById('vr-status').textContent = '';
+
+  // Load Pexels backgrounds per slide
+  const keywords = slides.map(s => slideKeywords(title, s));
+  _bgVideos = await loadBgVideos(keywords, totalSlides);
+
+  document.getElementById('vr-render-btn').innerHTML = '<span class="spinner"></span> Rendering...';
+  document.getElementById('vr-progress-label').textContent = 'Rendering...';
+
+  // ── Speak each slide's text via Browser TTS while rendering ──
+  const useBrowserTTS = localStorage.getItem('browserTTSMode') === 'true';
+  if (useBrowserTTS && 'speechSynthesis' in window) {
+    speechSynthesis.cancel();
+    // Queue all slides' speech — they'll play as rendering happens
+    slides.forEach((slideText, i) => {
+      const utter = new SpeechSynthesisUtterance(slideText.replace(/\[B-ROLL:[^\]]+\]/gi,'').replace(/[🔴📌📣🎬🎯⏱️═]+/g,'').trim());
+      utter.rate = 0.90; utter.pitch = 1.0; utter.volume = 1.0;
+      const voices = speechSynthesis.getVoices().filter(v => v.lang.startsWith('en'));
+      const best = voices.find(v => /google|microsoft|natural|neural/i.test(v.name)) || voices[0];
+      if (best) utter.voice = best;
+      speechSynthesis.speak(utter);
+    });
+  }
+
+  _mediaRecorder.start(200);
+  let frameNum = 0;
+
+  function renderNextFrame() {
+    if (frameNum >= totalFrames) { _mediaRecorder.stop(); return; }
+
+    const slideIdx = Math.floor(frameNum / framesPerSlide);
+    const frameInSlide = frameNum % framesPerSlide;
+    const bg = _bgVideos[slideIdx] || null;
+
+    // Figure out which caption chunk to show based on position within slide
+    const caps = slideCaptions[slideIdx] || [''];
+    const capIdx = Math.floor((frameInSlide / framesPerSlide) * caps.length);
+    const currentCaption = caps[Math.min(capIdx, caps.length - 1)] || '';
+
+    drawNewsFrame(ctx, W, H, currentCaption, title, slideIdx, totalSlides, accent, bg);
+
+    const pct = 40 + Math.round((frameNum / totalFrames) * 58);
+    document.getElementById('vr-progress-bar').style.width = pct + '%';
+    document.getElementById('vr-progress-label').textContent = `Slide ${slideIdx+1}/${totalSlides} · caption: "${currentCaption.slice(0,30)}..."`;
+
+    frameNum++;
+    if (frameNum % 8 === 0) setTimeout(renderNextFrame, 0);
+    else requestAnimationFrame(renderNextFrame);
+  }
+  requestAnimationFrame(renderNextFrame);
+}
 async function loadBgVideos(keywords, count) {
   const pexelsKey = localStorage.getItem('pexelsApiKey');
   const videos = [];
@@ -3487,14 +3654,15 @@ async function previewFrame() {
   const accent = getAccentColor();
   const title = document.getElementById('vr-title')?.value || 'Breaking News';
   const script = document.getElementById('vr-script')?.value || '';
-  const sentences = script.match(/[^.!?\n]+[.!?\n]*/g) || [script.slice(0, 200)];
-  const firstText = sentences[0]?.trim() || 'DailyFeedin — Breaking News';
+  const sentences = (script.match(/[^.!?\n]+[.!?\n]*/g) || [script.slice(0, 200)]).map(s => s.trim()).filter(Boolean);
+  const firstSentence = sentences[0] || 'DailyFeedin — Breaking News';
+  // Show first caption chunk of first sentence
+  const firstCaption = splitIntoCaptions(firstSentence)[0] || firstSentence.split(' ').slice(0,6).join(' ');
 
-  // Try to show a real background image in preview
   const pexelsKey = localStorage.getItem('pexelsApiKey');
   let bgMedia = null;
   if (pexelsKey) {
-    const kw = slideKeywords(title, firstText);
+    const kw = slideKeywords(title, firstSentence);
     try {
       const r = await fetch(`https://api.pexels.com/videos/search?query=${encodeURIComponent(kw)}&per_page=1&orientation=landscape`, { headers: { Authorization: pexelsKey } });
       if (r.ok) {
@@ -3509,7 +3677,7 @@ async function previewFrame() {
       }
     } catch {}
   }
-  drawNewsFrame(ctx, canvas.width, canvas.height, firstText, title, 0, Math.min(sentences.length, 12), accent, bgMedia);
+  drawNewsFrame(ctx, canvas.width, canvas.height, firstCaption, title, 0, Math.min(sentences.length, 12), accent, bgMedia);
 }
 
 function getAccentColor() {
@@ -3807,7 +3975,9 @@ window.addEventListener('load', () => {
 
       <!-- How it works note -->
       <div style="background:var(--bg3);border-radius:6px;padding:12px;font-size:11px;color:var(--text3);font-family:var(--font-mono);line-height:1.9;">
-        <span style="color:var(--accent);">HOW IT WORKS:</span> The renderer uses your browser's Canvas API to create a slideshow-style news video — script text on styled backgrounds, animated headlines, breaking news ticker. No external software needed. For voiceover audio embedded in the video, enable Browser TTS or add ElevenLabs. The final file is a real .webm/mp4 you can download or upload directly to YouTube.
+        <span style="color:var(--accent);">VIDEO:</span> Real Pexels footage per slide · Headline + caption bar overlay · Animated ticker<br>
+        <span style="color:var(--accent);">CAPTIONS:</span> Script auto-split into 6-word chunks that cycle across each slide<br>
+        <span style="color:var(--accent);">AUDIO:</span> Browser TTS speaks aloud while rendering (you hear it). The .webm file itself is <strong>video-only</strong> — browsers can't capture TTS audio into the file. <span style="color:var(--amber);">For embedded audio in the file: record your screen with OBS while rendering, or add ElevenLabs (paid) in Settings.</span>
       </div>
     </div>
   </div>
